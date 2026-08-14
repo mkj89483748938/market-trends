@@ -92,3 +92,12 @@ join (
   from market_trends.active_listings
   group by city_id
 ) latest on latest.city_id = al.city_id and latest.run_date = al.run_date;
+
+-- RLS with no policies = default-deny for anon/authenticated clients.
+-- The app and scraper both use the service role key, which bypasses RLS,
+-- so this has no effect on how the dashboard works — it just means these
+-- tables stay locked down if `market_trends` is ever exposed via the API.
+alter table market_trends.cities enable row level security;
+alter table market_trends.market_stats enable row level security;
+alter table market_trends.talking_points enable row level security;
+alter table market_trends.active_listings enable row level security;
