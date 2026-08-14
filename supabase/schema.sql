@@ -101,3 +101,16 @@ alter table market_trends.cities enable row level security;
 alter table market_trends.market_stats enable row level security;
 alter table market_trends.talking_points enable row level security;
 alter table market_trends.active_listings enable row level security;
+
+-- Creating a schema does not by itself grant Supabase's Postgres roles
+-- access to it. The app and scraper only ever use the service role key
+-- (which already bypasses RLS above), so it's the only role granted here —
+-- anon/authenticated stay locked out, matching the RLS policy above.
+grant usage on schema market_trends to service_role;
+grant all privileges on all tables in schema market_trends to service_role;
+grant all privileges on all sequences in schema market_trends to service_role;
+
+alter default privileges in schema market_trends
+  grant all privileges on tables to service_role;
+alter default privileges in schema market_trends
+  grant all privileges on sequences to service_role;
