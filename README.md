@@ -29,6 +29,10 @@ without colliding.
 2. Paste in the contents of `supabase/schema.sql` and run it. This creates
    the `market_trends` schema and its tables/views — it does not touch
    anything in `public` or elsewhere.
+3. Go to Project Settings → Data API, and add `market_trends` to the
+   **Exposed schemas** field (it defaults to `public, graphql_public` — the
+   REST API returns `PGRST106: Invalid schema` for any table outside that
+   list). Save; the change applies within a few seconds.
 
 ### 2. Vercel (Next.js app)
 
