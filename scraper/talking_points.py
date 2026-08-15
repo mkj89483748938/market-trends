@@ -25,7 +25,8 @@ Rules:
   they did a year ago"). Whole dollar figures and counts are fine.
 - Ground every bullet in the figures given. Never invent a number that wasn't provided.
 - Do not give legal, tax, or financial advice, and don't guarantee future price movement.
-- Respond with ONLY valid JSON: {"buyer": ["...", "..."], "seller": ["...", "..."]}
+- Respond with ONLY one valid JSON object containing both lists, and nothing else: \
+{"buyer": ["...", "..."], "seller": ["...", "..."]}
 """
 
 # Which absolute figures are worth spending input tokens on. The percent-change
@@ -109,12 +110,36 @@ def _format_stats(stats: dict) -> str:
 
 
 def _extract_json(text: str) -> dict:
-    """Claude is told to respond with ONLY JSON, but sometimes wraps it in a
-    ```json ... ``` fence anyway. Pull out the {...} block instead of
-    assuming the whole response is bare JSON.
+    """Pulls the talking-point object out of a model response.
+
+    Has to tolerate three things seen in real runs: a bare JSON object, an
+    object wrapped in a ```json ... ``` fence, and the response arriving as
+    two separate objects ({"buyer": ...} then {"seller": ...}) rather than
+    one. Scanning with raw_decode and merging handles all three; the earlier
+    greedy `\\{.*\\}` regex broke on the last one, matching from the first
+    brace to the last and then failing with "Extra data".
     """
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    return json.loads(match.group(0) if match else text)
+    decoder = json.JSONDecoder()
+    merged: dict = {}
+    index = 0
+    while True:
+        start = text.find("{", index)
+        if start == -1:
+            break
+        try:
+            obj, end = decoder.raw_decode(text, start)
+        except ValueError:
+            # Not the start of a valid object (a stray brace in prose, say).
+            index = start + 1
+            continue
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                merged.setdefault(key, value)
+        index = end
+
+    if not merged:
+        raise ValueError(f"no JSON object found in response: {text[:200]!r}")
+    return merged
 
 
 def generate_talking_points(city_name: str, stats: dict) -> dict[str, list[str]] | None:
