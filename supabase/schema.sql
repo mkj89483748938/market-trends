@@ -78,6 +78,20 @@ create index if not exists market_stats_city_date_idx
 create index if not exists active_listings_city_date_idx
   on market_trends.active_listings (city_id, run_date desc);
 
+-- Additive migrations: columns added after the initial deployment. These
+-- MUST run before the "select *" views below — a Postgres view built with
+-- "select *" freezes its column list at creation time, so a column added
+-- to the table *after* the view already exists silently never shows up in
+-- it until the view itself is rebuilt. Keeping every column-adding
+-- statement above the view definitions (rather than appended at the end of
+-- this file, as earlier versions of this script mistakenly did) means a
+-- full re-run always produces a view with every current column.
+alter table market_trends.market_stats add column if not exists new_listings_7d integer;
+alter table market_trends.market_stats add column if not exists pending_count integer;
+alter table market_trends.market_stats add column if not exists months_of_supply numeric;
+alter table market_trends.market_stats add column if not exists homes_sold_change_yoy numeric;
+alter table market_trends.market_stats add column if not exists price_change_vs_90d numeric;
+
 -- Convenience views: latest row per city (and per city+audience for talking points).
 create or replace view market_trends.latest_market_stats as
 select distinct on (city_id) *
@@ -119,17 +133,3 @@ alter default privileges in schema market_trends
   grant all privileges on tables to service_role;
 alter default privileges in schema market_trends
   grant all privileges on sequences to service_role;
-
--- Additive migration: new metrics (months of supply, pending listings, new
--- listings this week, a corrected homes-sold-change field). Safe to re-run;
--- only needed once against an existing deployment created before this was
--- added to the CREATE TABLE above.
-alter table market_trends.market_stats add column if not exists new_listings_7d integer;
-alter table market_trends.market_stats add column if not exists pending_count integer;
-alter table market_trends.market_stats add column if not exists months_of_supply numeric;
-alter table market_trends.market_stats add column if not exists homes_sold_change_yoy numeric;
-
--- Additive migration: replaces the noisy adjacent-30-day "MoM" price change
--- with a comparison against a trailing 90-day baseline. price_change_mom
--- stays in the schema (old data isn't deleted) but is no longer written to.
-alter table market_trends.market_stats add column if not exists price_change_vs_90d numeric;

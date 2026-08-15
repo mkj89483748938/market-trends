@@ -20,8 +20,7 @@ export function CityCard({ city, stats }: { city: City; stats?: MarketStats }) {
         <h3 className="font-semibold text-slate-900">{city.name}</h3>
         {stats?.price_change_yoy != null && (
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeColor}`}>
-            {direction === "up" ? "↑" : direction === "down" ? "↓" : "→"}{" "}
-            {Math.abs(stats.price_change_yoy).toFixed(1)}% YoY
+            {direction === "up" ? "↑ Trending up" : direction === "down" ? "↓ Declining" : "→ Flat"}
           </span>
         )}
       </div>
