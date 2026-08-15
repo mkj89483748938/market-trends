@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import date, timedelta
 
 import pandas as pd
@@ -7,6 +8,7 @@ from homeharvest import scrape_property
 logger = logging.getLogger("market_trends.scrape")
 
 SOLD_WINDOW_DAYS = 30
+EMPTY_RETRY_PAUSE_SECONDS = 5
 
 
 def _empty_df() -> pd.DataFrame:
@@ -22,6 +24,23 @@ def _safe_scrape(**kwargs) -> pd.DataFrame:
         return _empty_df()
 
 
+def _safe_scrape_active(**kwargs) -> pd.DataFrame:
+    """Active-listings scrape, with one retry on an empty result.
+
+    A city genuinely having zero active listings while homes are still
+    selling there isn't realistic — an empty result is far more likely a
+    transient blocked/empty response from Realtor.com than reality, and it's
+    consequential: it silently blanks out median list price, $/sqft, DOM,
+    new listings, and months of supply for that run.
+    """
+    result = _safe_scrape(**kwargs)
+    if result.empty:
+        logger.warning("active-listings scrape came back empty for %s, retrying once", kwargs.get("location"))
+        time.sleep(EMPTY_RETRY_PAUSE_SECONDS)
+        result = _safe_scrape(**kwargs)
+    return result
+
+
 def fetch_city_data(location: str) -> dict[str, pd.DataFrame]:
     """Fetches everything needed to compute one city's stats for one run."""
     today = date.today()
@@ -32,7 +51,7 @@ def fetch_city_data(location: str) -> dict[str, pd.DataFrame]:
     last_year_to = today - timedelta(days=365)
     last_year_from = last_year_to - timedelta(days=SOLD_WINDOW_DAYS)
 
-    active = _safe_scrape(location=location, listing_type="for_sale", limit=10000)
+    active = _safe_scrape_active(location=location, listing_type="for_sale", limit=10000)
     pending = _safe_scrape(location=location, listing_type="pending", limit=10000)
     sold_recent = _safe_scrape(
         location=location, listing_type="sold", date_from=str(recent_from), date_to=str(today), limit=10000
