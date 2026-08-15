@@ -90,7 +90,7 @@ def build_active_listings(city_id: str, run_date: str, active: pd.DataFrame, lim
     rows = []
     for _, row in df.iterrows():
         address_parts = [row.get("street"), row.get("unit"), row.get("city"), row.get("state")]
-        address = ", ".join(str(p) for p in address_parts if p and str(p).lower() != "nan")
+        address = ", ".join(str(p) for p in address_parts if pd.notna(p) and str(p).strip())
 
         rows.append(
             {
@@ -102,7 +102,7 @@ def build_active_listings(city_id: str, run_date: str, active: pd.DataFrame, lim
                 "baths": _to_float(row.get("full_baths")),
                 "sqft": _to_float(row.get("sqft")),
                 "days_on_market": _to_int(row.get("days_on_mls")),
-                "property_url": row.get("property_url") or None,
+                "property_url": row.get("property_url") if pd.notna(row.get("property_url")) else None,
             }
         )
     return rows
