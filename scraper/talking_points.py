@@ -42,7 +42,7 @@ def generate_talking_points(city_name: str, stats: dict) -> dict[str, list[str]]
     try:
         response = client.messages.create(
             model=MODEL,
-            max_tokens=600,
+            max_tokens=1200,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_prompt}],
         )
