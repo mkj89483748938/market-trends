@@ -131,10 +131,21 @@ the MLS.
 
 ## Notes / known limitations (v1)
 
-- Talking points are generated from the **all-types** segment, matching the
-  page's default view. If an agent is working from the Houses or Condos
-  toggle, the bullets may cite whole-market numbers rather than that
-  segment's — worth a glance before using them verbatim.
+- Talking points are deliberately **whole-market** (all property types) and
+  are not segmented, so the same bullets show on every tab of the segment
+  toggle. They avoid percentages by design — movement is described in words
+  ("prices are higher than three months ago") rather than in figures an agent
+  would then have to defend to a client.
+- Talking points are generated **once per scrape run**, not per page view:
+  one API call per city per week, written to the `talking_points` table, and
+  the dashboard only ever reads stored rows. Agents refreshing a city page
+  all day costs nothing.
+- **Active inventory excludes homes already under contract.** Realtor.com's
+  for-sale feed carries some listings that are in escrow, which would inflate
+  both inventory and months of supply; the scraper drops anything the feed
+  flags as pending/under contract and anything that also appears in the
+  dedicated pending query. Contingent listings are kept — they're still
+  taking backup offers.
 - Two trend charts, two different data sources: **median sold price** comes
   from date-ranged sold-listing queries, so it can be backfilled (see step 4
   above) and has real history from day one. **Active inventory** is only

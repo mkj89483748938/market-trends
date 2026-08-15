@@ -44,6 +44,65 @@ def _safe_scrape(**kwargs) -> pd.DataFrame:
     return result
 
 
+# Whatever realtor.com gives us to identify a listing by, best first. Not all
+# of these are present on every response, so we try them in order.
+_ID_COLUMNS = ("property_id", "listing_id", "mls_id", "property_url")
+
+# Statuses inside the for_sale feed that mean "already under contract".
+# CONTINGENT is deliberately not here — a contingent listing is still taking
+# backup offers and still counts as available in the reports agents compare
+# us against.
+_UNDER_CONTRACT_TOKENS = ("PENDING", "UNDER_CONTRACT")
+
+
+def _listing_keys(df: pd.DataFrame) -> tuple[str, set] | tuple[None, set]:
+    for column in _ID_COLUMNS:
+        if df is not None and column in df.columns:
+            keys = set(df[column].dropna().astype(str))
+            if keys:
+                return column, keys
+    return None, set()
+
+
+def exclude_pending(active: pd.DataFrame, pending: pd.DataFrame) -> pd.DataFrame:
+    """Removes under-contract homes from the active-inventory frame.
+
+    Realtor.com's `for_sale` feed carries some listings that are already in
+    escrow, which inflates active inventory and — because months of supply is
+    inventory divided by sales pace — inflates that too. Two passes: drop
+    anything the feed itself flags as pending/under contract, then drop
+    anything that also shows up in the dedicated `pending` query.
+
+    A buyer can't go buy a home that's in escrow, so counting it as available
+    overstates their choices and understates the seller's position.
+    """
+    if active is None or active.empty:
+        return active
+
+    before = len(active)
+    cleaned = active
+
+    if "status" in cleaned.columns:
+        status = cleaned["status"].astype(str).str.upper()
+        flagged = status.apply(lambda s: any(tok in s for tok in _UNDER_CONTRACT_TOKENS))
+        cleaned = cleaned[~flagged]
+
+    column, pending_keys = _listing_keys(pending)
+    if column and column in cleaned.columns:
+        overlap = cleaned[column].astype(str).isin(pending_keys)
+        cleaned = cleaned[~overlap]
+
+    removed = before - len(cleaned)
+    if removed:
+        logger.info(
+            "  removed %d under-contract listing(s) from active inventory (%d -> %d)",
+            removed,
+            before,
+            len(cleaned),
+        )
+    return cleaned
+
+
 def fetch_city_data(location: str) -> dict[str, pd.DataFrame]:
     """Fetches everything needed to compute one city's stats for one run."""
     today = date.today()
@@ -74,7 +133,7 @@ def fetch_city_data(location: str) -> dict[str, pd.DataFrame]:
     )
 
     return {
-        "active": active,
+        "active": exclude_pending(active, pending),
         "pending": pending,
         "sold_recent": sold_recent,
         "sold_90d": sold_90d,
