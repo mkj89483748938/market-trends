@@ -1,6 +1,9 @@
+import logging
 from datetime import date, timedelta
 
 import pandas as pd
+
+logger = logging.getLogger("market_trends.aggregate")
 
 
 def _median(df: pd.DataFrame, column: str) -> float | None:
@@ -41,6 +44,11 @@ def _sold_to_list_ratio(df: pd.DataFrame) -> float | None:
 
 def _new_listings_count(active: pd.DataFrame, run_date: str, days: int) -> int | None:
     if active is None or "list_date" not in active.columns:
+        if active is not None:
+            logger.warning(
+                "no 'list_date' column in active listings; available columns: %s",
+                list(active.columns),
+            )
         return None
     list_dates = pd.to_datetime(active["list_date"], errors="coerce")
     cutoff = pd.Timestamp(run_date) - pd.Timedelta(days=days)

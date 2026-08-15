@@ -40,6 +40,15 @@ def run() -> None:
             pending_count = len(data["pending"])
 
             stats = build_market_stats(city_id, run_date, data, pending_count, history)
+            logger.info("  stats: %s", {k: v for k, v in stats.items() if k not in ("city_id",)})
+            logger.info(
+                "  raw counts: active=%d pending=%d sold_recent=%d sold_prior=%d sold_last_year=%d",
+                len(data["active"]),
+                len(data["pending"]),
+                len(data["sold_recent"]),
+                len(data["sold_prior"]),
+                len(data["sold_last_year"]),
+            )
             upsert_market_stats(stats)
 
             listings = build_active_listings(city_id, run_date, data["active"])
