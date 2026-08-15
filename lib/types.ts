@@ -24,7 +24,7 @@ export type MarketStats = {
   homes_sold_30d: number | null;
   median_sold_price: number | null;
   sold_to_list_ratio: number | null;
-  price_change_mom: number | null;
+  price_change_vs_90d: number | null;
   price_change_yoy: number | null;
   inventory_change_mom: number | null;
   inventory_change_yoy: number | null;

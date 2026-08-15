@@ -37,6 +37,7 @@ create table if not exists market_trends.market_stats (
   sold_to_list_ratio numeric,
 
   price_change_mom numeric,
+  price_change_vs_90d numeric,
   price_change_yoy numeric,
   inventory_change_mom numeric,
   inventory_change_yoy numeric,
@@ -127,3 +128,8 @@ alter table market_trends.market_stats add column if not exists new_listings_7d 
 alter table market_trends.market_stats add column if not exists pending_count integer;
 alter table market_trends.market_stats add column if not exists months_of_supply numeric;
 alter table market_trends.market_stats add column if not exists homes_sold_change_yoy numeric;
+
+-- Additive migration: replaces the noisy adjacent-30-day "MoM" price change
+-- with a comparison against a trailing 90-day baseline. price_change_mom
+-- stays in the schema (old data isn't deleted) but is no longer written to.
+alter table market_trends.market_stats add column if not exists price_change_vs_90d numeric;

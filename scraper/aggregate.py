@@ -86,7 +86,7 @@ def build_market_stats(
 ) -> dict:
     active = data["active"]
     sold_recent = data["sold_recent"]
-    sold_prior = data["sold_prior"]
+    sold_90d = data["sold_90d"]
     sold_last_year = data["sold_last_year"]
 
     active_inventory = _count(active)
@@ -102,7 +102,7 @@ def build_market_stats(
     sold_to_list_ratio = _sold_to_list_ratio(sold_recent)
     months_of_supply = _months_of_supply(active_inventory, homes_sold_30d)
 
-    median_sold_price_prior = _median(sold_prior, "sold_price")
+    median_sold_price_90d = _median(sold_90d, "sold_price")
     median_sold_price_last_year = _median(sold_last_year, "sold_price")
     homes_sold_last_year = _count(sold_last_year)
     median_dom_last_year = _median(sold_last_year, "days_on_mls")
@@ -129,7 +129,11 @@ def build_market_stats(
         "homes_sold_30d": homes_sold_30d,
         "median_sold_price": median_sold_price,
         "sold_to_list_ratio": sold_to_list_ratio,
-        "price_change_mom": _pct_change(median_sold_price, median_sold_price_prior),
+        # Retired: "MoM" (adjacent 30-day windows) was noisy for smaller
+        # sample sizes — this column stays in the schema but is no longer
+        # written to. price_change_vs_90d replaces it.
+        "price_change_mom": None,
+        "price_change_vs_90d": _pct_change(median_sold_price, median_sold_price_90d),
         "price_change_yoy": _pct_change(median_sold_price, median_sold_price_last_year),
         "inventory_change_mom": _pct_change(
             active_inventory, prior_30d["active_inventory"] if prior_30d else None

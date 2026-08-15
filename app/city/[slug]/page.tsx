@@ -49,7 +49,7 @@ export default async function CityPage({ params }: { params: { slug: string } })
         <StatTile label="Pending" value={formatNumber(stats?.pending_count)} />
         <StatTile label="Homes sold (30d)" value={formatNumber(stats?.homes_sold_30d)} change={stats?.homes_sold_change_yoy} />
         <StatTile label="Sold-to-list ratio" value={stats?.sold_to_list_ratio != null ? `${stats.sold_to_list_ratio.toFixed(1)}%` : "—"} />
-        <StatTile label="Price change (MoM)" value={formatPercent(stats?.price_change_mom)} />
+        <StatTile label="Price change (vs 90d)" value={formatPercent(stats?.price_change_vs_90d)} />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">

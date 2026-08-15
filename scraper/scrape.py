@@ -27,8 +27,7 @@ def fetch_city_data(location: str) -> dict[str, pd.DataFrame]:
     today = date.today()
 
     recent_from = today - timedelta(days=SOLD_WINDOW_DAYS)
-    prior_from = today - timedelta(days=2 * SOLD_WINDOW_DAYS)
-    prior_to = recent_from
+    trailing_90d_from = today - timedelta(days=90)
 
     last_year_to = today - timedelta(days=365)
     last_year_from = last_year_to - timedelta(days=SOLD_WINDOW_DAYS)
@@ -38,8 +37,11 @@ def fetch_city_data(location: str) -> dict[str, pd.DataFrame]:
     sold_recent = _safe_scrape(
         location=location, listing_type="sold", date_from=str(recent_from), date_to=str(today), limit=10000
     )
-    sold_prior = _safe_scrape(
-        location=location, listing_type="sold", date_from=str(prior_from), date_to=str(prior_to), limit=10000
+    # A wider trailing baseline (vs. an adjacent 30-day window) so the
+    # "recent price trend" figure isn't as whipsawed by which specific
+    # homes happened to close in any one short window.
+    sold_90d = _safe_scrape(
+        location=location, listing_type="sold", date_from=str(trailing_90d_from), date_to=str(today), limit=10000
     )
     sold_last_year = _safe_scrape(
         location=location,
@@ -53,6 +55,6 @@ def fetch_city_data(location: str) -> dict[str, pd.DataFrame]:
         "active": active,
         "pending": pending,
         "sold_recent": sold_recent,
-        "sold_prior": sold_prior,
+        "sold_90d": sold_90d,
         "sold_last_year": sold_last_year,
     }
