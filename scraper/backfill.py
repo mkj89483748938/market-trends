@@ -16,7 +16,7 @@ import sys
 import time
 from datetime import date, timedelta
 
-from aggregate import _count, _median
+from aggregate import SEGMENTS, _count, _median, segment_frame
 from cities import CITIES, query_location
 from db import ensure_cities, upsert_market_stats
 from scrape import _safe_scrape
@@ -46,20 +46,24 @@ def backfill_city(city_id: str, city_name: str, months: int) -> None:
             limit=10000,
         )
 
-        row = {
-            "city_id": city_id,
-            "run_date": str(run_date),
-            "homes_sold_30d": _count(sold),
-            "median_sold_price": _median(sold, "sold_price"),
-        }
-        upsert_market_stats(row)
-        logger.info(
-            "  %s to %s -> %s sold, median $%s",
-            window_from,
-            window_to,
-            row["homes_sold_30d"],
-            row["median_sold_price"],
-        )
+        for segment in SEGMENTS:
+            sold_seg = segment_frame(sold, segment)
+            row = {
+                "city_id": city_id,
+                "run_date": str(run_date),
+                "property_segment": segment,
+                "homes_sold_30d": _count(sold_seg),
+                "median_sold_price": _median(sold_seg, "sold_price"),
+            }
+            upsert_market_stats(row)
+            logger.info(
+                "  %s to %s [%s] -> %s sold, median $%s",
+                window_from,
+                window_to,
+                segment,
+                row["homes_sold_30d"],
+                row["median_sold_price"],
+            )
         time.sleep(PAUSE_SECONDS)
 
 

@@ -8,10 +8,23 @@ export type City = {
   longitude: number | null;
 };
 
+export type PropertySegment = "all" | "single_family" | "condo_townhome";
+
+export const PROPERTY_SEGMENTS: { value: PropertySegment; label: string }[] = [
+  { value: "all", label: "All types" },
+  { value: "single_family", label: "Houses" },
+  { value: "condo_townhome", label: "Condos / Townhomes" },
+];
+
+export function isPropertySegment(value: string | undefined): value is PropertySegment {
+  return value === "all" || value === "single_family" || value === "condo_townhome";
+}
+
 export type MarketStats = {
   id: string;
   city_id: string;
   run_date: string;
+  property_segment: PropertySegment;
   active_inventory: number | null;
   new_listings_7d: number | null;
   new_listings_30d: number | null;
@@ -46,6 +59,7 @@ export type ActiveListing = {
   id: string;
   city_id: string;
   run_date: string;
+  property_segment: PropertySegment;
   address: string | null;
   list_price: number | null;
   beds: number | null;

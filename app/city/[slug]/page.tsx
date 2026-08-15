@@ -3,7 +3,9 @@ import Link from "next/link";
 import { StatTile } from "@/components/StatTile";
 import { TrendChart } from "@/components/TrendChart";
 import { TalkingPoints } from "@/components/TalkingPoints";
+import { SegmentToggle } from "@/components/SegmentToggle";
 import { formatCurrency, formatDays, formatNumber, formatPercent } from "@/lib/format";
+import { PROPERTY_SEGMENTS, isPropertySegment } from "@/lib/types";
 import {
   getCityBySlug,
   getLatestActiveListings,
@@ -14,15 +16,24 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function CityPage({ params }: { params: { slug: string } }) {
+export default async function CityPage({
+  params,
+  searchParams,
+}: {
+  params: { slug: string };
+  searchParams: { segment?: string };
+}) {
   const city = await getCityBySlug(params.slug);
   if (!city) notFound();
 
+  const segment = isPropertySegment(searchParams.segment) ? searchParams.segment : "all";
+  const segmentLabel = PROPERTY_SEGMENTS.find((s) => s.value === segment)?.label ?? "All types";
+
   const [stats, history, talkingPoints, listings] = await Promise.all([
-    getLatestStatsForCity(city.id),
-    getStatsHistory(city.id),
+    getLatestStatsForCity(city.id, segment),
+    getStatsHistory(city.id, segment),
     getLatestTalkingPoints(city.id),
-    getLatestActiveListings(city.id),
+    getLatestActiveListings(city.id, segment),
   ]);
 
   return (
@@ -31,12 +42,24 @@ export default async function CityPage({ params }: { params: { slug: string } })
         ← All cities
       </Link>
 
-      <header className="mt-2 mb-8">
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{city.name}</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          {stats ? `Updated ${new Date(stats.run_date).toLocaleDateString()}` : "No data yet"}
-        </p>
+      <header className="mt-2 mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{city.name}</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            {segmentLabel}
+            {stats ? ` · Updated ${new Date(stats.run_date).toLocaleDateString()}` : " · No data yet"}
+          </p>
+        </div>
+        <SegmentToggle slug={city.slug} active={segment} />
       </header>
+
+      {!stats && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+          No data for the <strong>{segmentLabel}</strong> view yet. Property-type
+          segments are populated by the scraper — they&apos;ll fill in after the next
+          run completes.
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <StatTile label="Median sold price" value={formatCurrency(stats?.median_sold_price)} change={stats?.price_change_yoy} />

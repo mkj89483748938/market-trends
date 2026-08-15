@@ -2,7 +2,13 @@ import logging
 import time
 from datetime import date
 
-from aggregate import build_active_listings, build_market_stats
+from aggregate import (
+    SEGMENT_ALL,
+    SEGMENTS,
+    build_active_listings,
+    build_market_stats,
+    log_style_distribution,
+)
 from cities import CITIES, query_location
 from db import (
     ensure_cities,
@@ -35,12 +41,7 @@ def run() -> None:
         logger.info("[%d/%d] %s", i + 1, len(CITIES), city["name"])
 
         try:
-            history = get_stats_history(city_id)
             data = fetch_city_data(query_location(city["name"]))
-            pending_count = len(data["pending"])
-
-            stats = build_market_stats(city_id, run_date, data, pending_count, history)
-            logger.info("  stats: %s", {k: v for k, v in stats.items() if k not in ("city_id",)})
             logger.info(
                 "  raw counts: active=%d pending=%d sold_recent=%d sold_90d=%d sold_last_year=%d",
                 len(data["active"]),
@@ -49,12 +50,33 @@ def run() -> None:
                 len(data["sold_90d"]),
                 len(data["sold_last_year"]),
             )
-            upsert_market_stats(stats)
+            log_style_distribution(city["name"], data["active"])
 
-            listings = build_active_listings(city_id, run_date, data["active"])
-            replace_active_listings(city_id, run_date, listings)
+            # One stats row per property segment, so the dashboard can be
+            # reconciled against segment-split reports (Altos/BHHS "Houses"
+            # vs. "Condos") instead of only showing a blended all-types number.
+            all_segment_stats = {}
+            listings: list[dict] = []
+            for segment in SEGMENTS:
+                history = get_stats_history(city_id, segment)
+                stats = build_market_stats(city_id, run_date, data, history, segment)
+                all_segment_stats[segment] = stats
+                logger.info(
+                    "  [%s] inventory=%s median_list=%s median_sold=%s vs90d=%s",
+                    segment,
+                    stats["active_inventory"],
+                    stats["median_list_price"],
+                    stats["median_sold_price"],
+                    stats["price_change_vs_90d"],
+                )
+                upsert_market_stats(stats)
+                listings.extend(build_active_listings(city_id, run_date, data["active"], segment))
 
-            points = generate_talking_points(city["name"], stats)
+            replace_active_listings(city_id, listings)
+
+            # Talking points are generated from the all-types view, matching
+            # the dashboard's default segment.
+            points = generate_talking_points(city["name"], all_segment_stats[SEGMENT_ALL])
             if points:
                 for audience in ("buyer", "seller"):
                     upsert_talking_points(

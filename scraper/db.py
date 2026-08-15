@@ -29,11 +29,13 @@ def ensure_cities(cities: list[dict]) -> dict[str, str]:
 
 
 def upsert_market_stats(row: dict) -> None:
-    get_client().table("market_stats").upsert(row, on_conflict="city_id,run_date").execute()
+    get_client().table("market_stats").upsert(
+        row, on_conflict="city_id,run_date,property_segment"
+    ).execute()
 
 
-def get_stats_history(city_id: str) -> list[dict]:
-    """All prior market_stats rows for a city, oldest first.
+def get_stats_history(city_id: str, segment: str = "all") -> list[dict]:
+    """Prior market_stats rows for a city + segment, oldest first.
 
     Realtor.com only exposes a live snapshot of active inventory/list price —
     there's no way to query "what was active a year ago". So month-over-month
@@ -46,6 +48,7 @@ def get_stats_history(city_id: str) -> list[dict]:
         .table("market_stats")
         .select("run_date, active_inventory, median_list_price")
         .eq("city_id", city_id)
+        .eq("property_segment", segment)
         .order("run_date")
         .execute()
     )
@@ -58,10 +61,15 @@ def upsert_talking_points(row: dict) -> None:
     ).execute()
 
 
-def replace_active_listings(city_id: str, run_date: str, listings: list[dict]) -> None:
+def replace_active_listings(city_id: str, listings: list[dict]) -> None:
+    """Swaps in this run's listing snapshot for a city (all segments at once).
+
+    Deletes every prior row for the city before inserting, so
+    `active_listings` only ever holds the latest run. Callers must pass all
+    segments' listings together — deleting per-segment-per-call would wipe
+    the segments written earlier in the same run.
+    """
     client = get_client()
-    # Drop this city's previous snapshot (any run_date) before inserting the
-    # new one, so `active_listings` only ever holds the latest run per city.
     client.table("active_listings").delete().eq("city_id", city_id).execute()
     if listings:
         client.table("active_listings").insert(listings).execute()

@@ -5,6 +5,61 @@ import pandas as pd
 
 logger = logging.getLogger("market_trends.aggregate")
 
+# Property-type segments, mirroring how Altos/BHHS market reports split
+# Houses vs. Condos/Co-Op. Mixing all types into one number made our figures
+# look wrong beside those reports in condo-heavy cities.
+SEGMENT_ALL = "all"
+SEGMENT_SINGLE_FAMILY = "single_family"
+SEGMENT_CONDO_TOWNHOME = "condo_townhome"
+SEGMENTS = (SEGMENT_ALL, SEGMENT_SINGLE_FAMILY, SEGMENT_CONDO_TOWNHOME)
+
+# Substring matching rather than an exact enum list: HomeHarvest passes
+# realtor.com's property-type values through (SINGLE_FAMILY, CONDOS,
+# CONDO_TOWNHOME_ROWHOME_COOP, TOWNHOMES, ...) and that vocabulary can shift.
+# Anything unmatched (land, mobile, multi-family, farm) still counts toward
+# `all` but lands in neither sub-segment — same as Altos excluding land from
+# its Houses tab.
+_SINGLE_FAMILY_TOKENS = ("SINGLE_FAMILY",)
+_CONDO_TOKENS = ("CONDO", "TOWNHOME", "TOWNHOUSE", "COOP", "CO_OP", "APARTMENT")
+
+
+def _style_series(df: pd.DataFrame) -> pd.Series | None:
+    if df is None or df.empty or "style" not in df.columns:
+        return None
+    return df["style"].astype(str).str.upper()
+
+
+def segment_frame(df: pd.DataFrame, segment: str) -> pd.DataFrame:
+    """Filters a listings dataframe down to one property-type segment."""
+    if segment == SEGMENT_ALL:
+        return df
+
+    styles = _style_series(df)
+    if styles is None:
+        # No style column (or no rows) — can't segment, so report empty
+        # rather than silently passing the unfiltered frame through as if
+        # it were single-family-only.
+        return df.iloc[0:0] if df is not None else df
+
+    if segment == SEGMENT_SINGLE_FAMILY:
+        tokens = _SINGLE_FAMILY_TOKENS
+    else:
+        tokens = _CONDO_TOKENS
+
+    mask = styles.apply(lambda s: any(tok in s for tok in tokens))
+    return df[mask]
+
+
+def log_style_distribution(city_name: str, active: pd.DataFrame) -> None:
+    """One-line record of the raw style values seen, so the segment rules can
+    be checked against reality instead of assumed."""
+    styles = _style_series(active)
+    if styles is None:
+        logger.warning("  %s: no 'style' column available to segment on", city_name)
+        return
+    counts = styles.value_counts().to_dict()
+    logger.info("  %s active-listing styles: %s", city_name, counts)
+
 
 def _median(df: pd.DataFrame, column: str) -> float | None:
     if column not in df.columns:
@@ -81,14 +136,16 @@ def build_market_stats(
     city_id: str,
     run_date: str,
     data: dict[str, pd.DataFrame],
-    pending_count: int | None,
     history: list[dict],
+    segment: str = SEGMENT_ALL,
 ) -> dict:
-    active = data["active"]
-    sold_recent = data["sold_recent"]
-    sold_90d = data["sold_90d"]
-    sold_last_year = data["sold_last_year"]
+    active = segment_frame(data["active"], segment)
+    pending = segment_frame(data["pending"], segment)
+    sold_recent = segment_frame(data["sold_recent"], segment)
+    sold_90d = segment_frame(data["sold_90d"], segment)
+    sold_last_year = segment_frame(data["sold_last_year"], segment)
 
+    pending_count = _count(pending)
     active_inventory = _count(active)
     median_list_price = _median(active, "list_price")
     avg_list_price = _mean(active, "list_price")
@@ -117,6 +174,7 @@ def build_market_stats(
     return {
         "city_id": city_id,
         "run_date": run_date,
+        "property_segment": segment,
         "active_inventory": active_inventory,
         "new_listings_7d": new_listings_7d,
         "new_listings_30d": new_listings_30d,
@@ -146,7 +204,14 @@ def build_market_stats(
     }
 
 
-def build_active_listings(city_id: str, run_date: str, active: pd.DataFrame, limit: int = 25) -> list[dict]:
+def build_active_listings(
+    city_id: str,
+    run_date: str,
+    active: pd.DataFrame,
+    segment: str = SEGMENT_ALL,
+    limit: int = 25,
+) -> list[dict]:
+    active = segment_frame(active, segment)
     if active is None or active.empty:
         return []
 
@@ -169,6 +234,7 @@ def build_active_listings(city_id: str, run_date: str, active: pd.DataFrame, lim
             {
                 "city_id": city_id,
                 "run_date": run_date,
+                "property_segment": segment,
                 "address": address or None,
                 "list_price": _to_float(row.get("list_price")),
                 "beds": _to_float(row.get("beds")),

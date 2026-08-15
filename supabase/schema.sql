@@ -92,18 +92,42 @@ alter table market_trends.market_stats add column if not exists months_of_supply
 alter table market_trends.market_stats add column if not exists homes_sold_change_yoy numeric;
 alter table market_trends.market_stats add column if not exists price_change_vs_90d numeric;
 
--- Convenience views: latest row per city (and per city+audience for talking points).
-create or replace view market_trends.latest_market_stats as
-select distinct on (city_id) *
-from market_trends.market_stats
-order by city_id, run_date desc;
+-- Property-type segmentation. Altos/BHHS market reports segment by
+-- Houses / Condos / Co-Op; our numbers previously mixed all types together,
+-- which made them look wrong next to those reports (e.g. Irvine showed 3x
+-- the inventory and a 35% lower median list price than the Altos "Houses"
+-- tab). Each run now writes one row per (city, segment).
+alter table market_trends.market_stats add column if not exists property_segment text not null default 'all';
+alter table market_trends.active_listings add column if not exists property_segment text not null default 'all';
 
-create or replace view market_trends.latest_talking_points as
+-- Widen the uniqueness key to include the segment, so the three segment
+-- rows per city per run don't overwrite each other on upsert.
+alter table market_trends.market_stats drop constraint if exists market_stats_city_id_run_date_key;
+create unique index if not exists market_stats_city_date_segment_key
+  on market_trends.market_stats (city_id, run_date, property_segment);
+
+create index if not exists active_listings_city_segment_idx
+  on market_trends.active_listings (city_id, property_segment);
+
+-- Convenience views: latest row per city (and per city+audience for talking
+-- points). Dropped and recreated rather than CREATE OR REPLACE'd: a view
+-- built with "select *" freezes its column list at creation time, and
+-- REPLACE can't reorder or remove columns, so a plain replace silently keeps
+-- serving a stale column set after the table gains new columns.
+drop view if exists market_trends.latest_market_stats;
+create view market_trends.latest_market_stats as
+select distinct on (city_id, property_segment) *
+from market_trends.market_stats
+order by city_id, property_segment, run_date desc;
+
+drop view if exists market_trends.latest_talking_points;
+create view market_trends.latest_talking_points as
 select distinct on (city_id, audience) *
 from market_trends.talking_points
 order by city_id, audience, run_date desc;
 
-create or replace view market_trends.latest_active_listings as
+drop view if exists market_trends.latest_active_listings;
+create view market_trends.latest_active_listings as
 select al.*
 from market_trends.active_listings al
 join (
@@ -111,6 +135,10 @@ join (
   from market_trends.active_listings
   group by city_id
 ) latest on latest.city_id = al.city_id and latest.run_date = al.run_date;
+
+-- PostgREST caches the schema; without this it keeps serving the old column
+-- set (and 404s new ones) until it happens to reload on its own.
+notify pgrst, 'reload schema';
 
 -- RLS with no policies = default-deny for anon/authenticated clients.
 -- The app and scraper both use the service role key, which bypasses RLS,

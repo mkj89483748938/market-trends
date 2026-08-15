@@ -91,8 +91,50 @@ export ANTHROPIC_API_KEY=...
 python main.py
 ```
 
+## Property-type segments
+
+Each run writes three rows per city — `all`, `single_family`, and
+`condo_townhome` — and the city page has a matching toggle (All types /
+Houses / Condos & Townhomes). Segmenting happens locally, in pandas, off the
+`style` field of the listings already fetched, so it costs no extra requests
+to Realtor.com.
+
+This exists because a blended all-types number doesn't reconcile against the
+Altos-powered reports agents already see (BHHS "Your Local Market Report"),
+which split Houses / Condos / Co-Op. Irvine was the clearest example: our
+all-types view showed ~3x the inventory and a ~35% lower median list price
+than the Altos Houses tab, purely from mixing condos into the same number.
+
+Listings whose type is neither (land, mobile, multi-family, farm) count
+toward `all` only — the same way Altos leaves land out of its Houses tab.
+
+## Reconciling against Altos / other market reports
+
+Expect our figures to be *close to* but not identical to Altos, even
+segment-for-segment. Known reasons, in rough order of impact:
+
+1. **Property type** — the big one, addressed by the segment toggle above.
+   Compare like for like: our "Houses" against their "Houses" tab.
+2. **Geography** — Altos defines its own market areas (often zip-based);
+   HomeHarvest resolves Realtor.com's city boundary. Unincorporated pockets
+   near a city can land on either side of the line.
+3. **Days on market** — Realtor.com's `days_on_mls` generally resets when a
+   listing is relisted, biasing our DOM lower. Altos reports a separate
+   "relisted %" precisely because this is significant.
+4. **Source tier** — Altos ingests MLS feeds under license; we read
+   Realtor.com's public listing data, which is MLS-derived but filtered and
+   slightly delayed.
+
+Treat this dashboard as a fast directional read, not a system of record. For
+anything going in front of a client as a precise figure, reconcile against
+the MLS.
+
 ## Notes / known limitations (v1)
 
+- Talking points are generated from the **all-types** segment, matching the
+  page's default view. If an agent is working from the Houses or Condos
+  toggle, the bullets may cite whole-market numbers rather than that
+  segment's — worth a glance before using them verbatim.
 - Two trend charts, two different data sources: **median sold price** comes
   from date-ranged sold-listing queries, so it can be backfilled (see step 4
   above) and has real history from day one. **Active inventory** is only
