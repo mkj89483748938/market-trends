@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 
 from anthropic import Anthropic
 
@@ -26,6 +27,15 @@ Rules:
 """
 
 
+def _extract_json(text: str) -> dict:
+    """Claude is told to respond with ONLY JSON, but sometimes wraps it in a
+    ```json ... ``` fence anyway. Pull out the {...} block instead of
+    assuming the whole response is bare JSON.
+    """
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    return json.loads(match.group(0) if match else text)
+
+
 def generate_talking_points(city_name: str, stats: dict) -> dict[str, list[str]] | None:
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -47,7 +57,7 @@ def generate_talking_points(city_name: str, stats: dict) -> dict[str, list[str]]
             messages=[{"role": "user", "content": user_prompt}],
         )
         text = "".join(block.text for block in response.content if block.type == "text")
-        parsed = json.loads(text)
+        parsed = _extract_json(text)
         buyer = [str(p) for p in parsed.get("buyer", [])]
         seller = [str(p) for p in parsed.get("seller", [])]
         return {"buyer": buyer, "seller": seller}
