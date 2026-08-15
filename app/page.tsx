@@ -9,14 +9,14 @@ export default async function HomePage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
       <header className="mb-8">
-        <h1 className="text-2xl font-semibold text-slate-900">OC Market Trends</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">OC Market Trends</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Orange County city-by-city market stats, trends, and client talking points.
         </p>
       </header>
 
       {cities.length === 0 ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           No cities loaded yet. Run the schema migration and the scraper to populate data.
         </p>
       ) : (

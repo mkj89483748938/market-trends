@@ -40,16 +40,21 @@ export async function getLatestStatsForCity(cityId: string): Promise<MarketStats
   return data;
 }
 
-export async function getStatsHistory(cityId: string, limit = 26): Promise<MarketStats[]> {
+export async function getStatsHistory(cityId: string, limit = 60): Promise<MarketStats[]> {
   const supabase = getServiceClient();
+  // Order descending + limit to get the most recent rows, then reverse to
+  // chronological order for the chart. Ordering ascending-then-limit (the
+  // original approach) grabs the OLDEST rows instead once a city has more
+  // than `limit` rows on record, silently freezing the trend chart on old
+  // data instead of showing the latest weeks.
   const { data, error } = await supabase
     .from("market_stats")
     .select("*")
     .eq("city_id", cityId)
-    .order("run_date", { ascending: true })
+    .order("run_date", { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).reverse();
 }
 
 export async function getLatestTalkingPoints(cityId: string): Promise<Record<Audience, string[]>> {
@@ -69,11 +74,14 @@ export async function getLatestTalkingPoints(cityId: string): Promise<Record<Aud
 
 export async function getLatestActiveListings(cityId: string, limit = 12): Promise<ActiveListing[]> {
   const supabase = getServiceClient();
+  // Sorted by days-on-market ascending (lowest first) as a proxy for recency
+  // — this table is labeled "Recent active listings" in the UI, but was
+  // previously sorted by price descending, which isn't the same thing.
   const { data, error } = await supabase
     .from("latest_active_listings")
     .select("*")
     .eq("city_id", cityId)
-    .order("list_price", { ascending: false })
+    .order("days_on_market", { ascending: true, nullsFirst: false })
     .limit(limit);
   if (error) throw error;
   return data ?? [];

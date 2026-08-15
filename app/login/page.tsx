@@ -11,14 +11,14 @@ export default function LoginPage({
       <form
         action="/api/login"
         method="POST"
-        className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm"
+        className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-700 dark:bg-slate-800"
       >
-        <h1 className="text-lg font-semibold text-slate-900">OC Market Trends</h1>
-        <p className="mt-1 text-sm text-slate-500">Enter the team password to continue.</p>
+        <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">OC Market Trends</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Enter the team password to continue.</p>
 
         <input type="hidden" name="next" value={next} />
 
-        <label className="mt-6 block text-sm font-medium text-slate-700" htmlFor="password">
+        <label className="mt-6 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="password">
           Password
         </label>
         <input
@@ -27,11 +27,11 @@ export default function LoginPage({
           type="password"
           required
           autoFocus
-          className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
         />
 
         {hasError && (
-          <p className="mt-2 text-sm text-red-600">Incorrect password. Try again.</p>
+          <p className="mt-2 text-sm text-red-600 dark:text-red-400">Incorrect password. Try again.</p>
         )}
 
         <button

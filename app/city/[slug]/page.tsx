@@ -32,8 +32,8 @@ export default async function CityPage({ params }: { params: { slug: string } })
       </Link>
 
       <header className="mt-2 mb-8">
-        <h1 className="text-2xl font-semibold text-slate-900">{city.name}</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{city.name}</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           {stats ? `Updated ${new Date(stats.run_date).toLocaleDateString()}` : "No data yet"}
         </p>
       </header>
@@ -78,14 +78,14 @@ export default async function CityPage({ params }: { params: { slug: string } })
       </div>
 
       {listings.length > 0 && (
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Recent active listings
           </p>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="text-slate-500">
+                <tr className="text-slate-500 dark:text-slate-400">
                   <th className="pb-2 pr-4 font-medium">Address</th>
                   <th className="pb-2 pr-4 font-medium">Price</th>
                   <th className="pb-2 pr-4 font-medium">Beds/Baths</th>
@@ -95,14 +95,14 @@ export default async function CityPage({ params }: { params: { slug: string } })
               </thead>
               <tbody>
                 {listings.map((listing) => (
-                  <tr key={listing.id} className="border-t border-slate-100">
+                  <tr key={listing.id} className="border-t border-slate-100 dark:border-slate-700">
                     <td className="py-2 pr-4">
                       {listing.property_url ? (
                         <a
                           href={listing.property_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-brand-600 hover:underline"
+                          className="text-brand-600 hover:underline dark:text-brand-500"
                         >
                           {listing.address ?? "View listing"}
                         </a>

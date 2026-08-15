@@ -151,7 +151,12 @@ def build_active_listings(city_id: str, run_date: str, active: pd.DataFrame, lim
         return []
 
     df = active.copy()
-    if "list_price" in df.columns:
+    # Most-recently-listed first (lowest days-on-market) — this feeds the
+    # "Recent active listings" table, so what gets stored here should match
+    # what that label actually promises, not e.g. the priciest listings.
+    if "days_on_mls" in df.columns:
+        df = df.sort_values("days_on_mls", ascending=True, na_position="last")
+    elif "list_price" in df.columns:
         df = df.sort_values("list_price", ascending=False)
     df = df.head(limit)
 
