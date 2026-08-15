@@ -16,5 +16,12 @@ export function getServiceClient() {
   return createClient(url, key, {
     db: { schema: "market_trends" },
     auth: { persistSession: false },
+    // supabase-js issues its queries through fetch, which Next.js caches by
+    // default. The pages are already force-dynamic, but pinning no-store
+    // here removes any chance of the dashboard serving a stale snapshot of
+    // the data after a scrape run has updated it.
+    global: {
+      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+    },
   });
 }
