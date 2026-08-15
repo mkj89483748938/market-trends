@@ -1,10 +1,15 @@
 import { CityCard } from "@/components/CityCard";
-import { getCities, getLatestStatsByCity } from "@/lib/queries";
+import { LastUpdated } from "@/components/LastUpdated";
+import { getCities, getLastUpdated, getLatestStatsByCity } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [cities, statsByCity] = await Promise.all([getCities(), getLatestStatsByCity()]);
+  const [cities, statsByCity, lastUpdated] = await Promise.all([
+    getCities(),
+    getLatestStatsByCity(),
+    getLastUpdated(),
+  ]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
@@ -13,6 +18,9 @@ export default async function HomePage() {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Orange County city-by-city market stats, trends, and client talking points.
         </p>
+        <div className="mt-3">
+          <LastUpdated runDate={lastUpdated} />
+        </div>
       </header>
 
       {cities.length === 0 ? (

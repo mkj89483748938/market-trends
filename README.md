@@ -131,6 +131,11 @@ the MLS.
 
 ## Notes / known limitations (v1)
 
+- Every page shows a **"Data last updated"** note with the date of the run
+  that produced the figures on screen. It turns amber past 10 days, which
+  means a weekly run was missed or failed — the dashboard has no way to tell
+  the difference between "the market didn't move" and "the scraper didn't
+  run", so it says which data it's showing instead of guessing.
 - Talking points are deliberately **whole-market** (all property types) and
   are not segmented, so the same bullets show on every tab of the segment
   toggle. They avoid percentages by design — movement is described in words

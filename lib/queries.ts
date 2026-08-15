@@ -41,6 +41,23 @@ export async function getLatestStatsByCity(
   return map;
 }
 
+/**
+ * Most recent run_date across every city — i.e. when the data last refreshed.
+ * Reads market_stats rather than latest_market_stats so it reflects the newest
+ * run even if a city or two failed to write that week.
+ */
+export async function getLastUpdated(): Promise<string | null> {
+  const supabase = getServiceClient();
+  const { data, error } = await supabase
+    .from("market_stats")
+    .select("run_date")
+    .order("run_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.run_date ?? null;
+}
+
 export async function getLatestStatsForCity(
   cityId: string,
   segment: PropertySegment = "all"

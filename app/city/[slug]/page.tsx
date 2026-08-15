@@ -4,7 +4,8 @@ import { StatTile } from "@/components/StatTile";
 import { TrendChart } from "@/components/TrendChart";
 import { TalkingPoints } from "@/components/TalkingPoints";
 import { SegmentToggle } from "@/components/SegmentToggle";
-import { formatCurrency, formatDays, formatNumber, formatPercent } from "@/lib/format";
+import { LastUpdated } from "@/components/LastUpdated";
+import { formatCurrency, formatDays, formatNumber, formatPercent, formatRunDate } from "@/lib/format";
 import { PROPERTY_SEGMENTS, isPropertySegment } from "@/lib/types";
 import {
   getCityBySlug,
@@ -47,11 +48,20 @@ export default async function CityPage({
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{city.name}</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {segmentLabel}
-            {stats ? ` · Updated ${new Date(stats.run_date).toLocaleDateString()}` : " · No data yet"}
+            {stats ? ` · Updated ${formatRunDate(stats.run_date)}` : " · No data yet"}
           </p>
         </div>
         <SegmentToggle slug={city.slug} active={segment} />
       </header>
+
+      {/* Only when this segment has data — the amber banner below already
+          explains the empty case, and LastUpdated's own "no data" copy is
+          about the whole dashboard, not one segment. */}
+      {stats && (
+        <div className="mb-6">
+          <LastUpdated runDate={stats.run_date} />
+        </div>
+      )}
 
       {!stats && (
         <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
