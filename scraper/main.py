@@ -4,7 +4,13 @@ from datetime import date
 
 from aggregate import build_active_listings, build_market_stats
 from cities import CITIES, query_location
-from db import ensure_cities, replace_active_listings, upsert_market_stats, upsert_talking_points
+from db import (
+    ensure_cities,
+    get_stats_history,
+    replace_active_listings,
+    upsert_market_stats,
+    upsert_talking_points,
+)
 from scrape import fetch_city_data
 from talking_points import generate_talking_points
 
@@ -29,9 +35,11 @@ def run() -> None:
         logger.info("[%d/%d] %s", i + 1, len(CITIES), city["name"])
 
         try:
+            history = get_stats_history(city_id)
             data = fetch_city_data(query_location(city["name"]))
+            pending_count = len(data["pending"])
 
-            stats = build_market_stats(city_id, run_date, data)
+            stats = build_market_stats(city_id, run_date, data, pending_count, history)
             upsert_market_stats(stats)
 
             listings = build_active_listings(city_id, run_date, data["active"])

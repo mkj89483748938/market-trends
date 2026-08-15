@@ -28,7 +28,9 @@ without colliding.
 1. Open your Supabase project → SQL Editor → New query.
 2. Paste in the contents of `supabase/schema.sql` and run it. This creates
    the `market_trends` schema and its tables/views — it does not touch
-   anything in `public` or elsewhere.
+   anything in `public` or elsewhere. The whole file is safe to re-run any
+   time (e.g. after pulling an update that adds new columns) — everything
+   is `if not exists` / additive.
 3. Go to Project Settings → Data API, and add `market_trends` to the
    **Exposed schemas** field (it defaults to `public, graphql_public` — the
    REST API returns `PGRST106: Invalid schema` for any table outside that
@@ -59,6 +61,17 @@ Once secrets are set, trigger the workflow manually the first time from the
 **Actions** tab (`Scrape OC market data` → `Run workflow`) instead of waiting
 for the weekly schedule, so the dashboard has data right away.
 
+### 4. Backfill sold-price history (optional, one-time)
+
+The weekly scraper only knows about *active* inventory and list price as a
+live snapshot — there's no way to ask Realtor.com what was active a year
+ago. Sold-price history is different: it can be queried for any past date
+range, so run the **"Backfill sold-price history"** workflow once (Actions
+tab → `workflow_dispatch`, default 6 months) to seed the median-sold-price
+trend chart with real history immediately, instead of waiting months for
+weekly runs to build it up. The active-inventory trend chart can't be
+backfilled the same way — it fills in naturally as weekly runs accumulate.
+
 ## Local development
 
 ```bash
@@ -80,10 +93,16 @@ python main.py
 
 ## Notes / known limitations (v1)
 
-- Trend charts build up from data collected over time — they'll look sparse
-  until a few weekly runs have happened. Month-over-month and year-over-year
-  percentages don't depend on that history, though — they're computed fresh
-  each run from Realtor.com's own historical sold data.
+- Two trend charts, two different data sources: **median sold price** comes
+  from date-ranged sold-listing queries, so it can be backfilled (see step 4
+  above) and has real history from day one. **Active inventory** is only
+  ever a live snapshot, so that chart — along with `inventory_change_mom`/
+  `inventory_change_yoy` on the stat tiles — has no way to backfill and
+  instead builds up from our own accumulated weekly runs, comparing each
+  run against the nearest prior run ~30/~365 days back once enough exist.
+  Price and homes-sold month-over-month/year-over-year percentages don't
+  have this limitation — they're computed fresh each run from Realtor.com's
+  own historical sold data.
 - HomeHarvest scrapes Realtor.com; it's not an official API, so treat the
   weekly cadence as the default and avoid tightening it to daily without a
   reason — a scraping failure for one city is logged and skipped rather than

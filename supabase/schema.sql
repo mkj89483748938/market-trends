@@ -23,7 +23,10 @@ create table if not exists market_trends.market_stats (
   run_date date not null,
 
   active_inventory integer,
+  new_listings_7d integer,
   new_listings_30d integer,
+  pending_count integer,
+  months_of_supply numeric,
   median_list_price numeric,
   avg_list_price numeric,
   median_price_per_sqft numeric,
@@ -37,6 +40,7 @@ create table if not exists market_trends.market_stats (
   price_change_yoy numeric,
   inventory_change_mom numeric,
   inventory_change_yoy numeric,
+  homes_sold_change_yoy numeric,
   dom_change_yoy numeric,
 
   created_at timestamptz not null default now(),
@@ -114,3 +118,12 @@ alter default privileges in schema market_trends
   grant all privileges on tables to service_role;
 alter default privileges in schema market_trends
   grant all privileges on sequences to service_role;
+
+-- Additive migration: new metrics (months of supply, pending listings, new
+-- listings this week, a corrected homes-sold-change field). Safe to re-run;
+-- only needed once against an existing deployment created before this was
+-- added to the CREATE TABLE above.
+alter table market_trends.market_stats add column if not exists new_listings_7d integer;
+alter table market_trends.market_stats add column if not exists pending_count integer;
+alter table market_trends.market_stats add column if not exists months_of_supply numeric;
+alter table market_trends.market_stats add column if not exists homes_sold_change_yoy numeric;

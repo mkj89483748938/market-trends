@@ -13,7 +13,10 @@ export type MarketStats = {
   city_id: string;
   run_date: string;
   active_inventory: number | null;
+  new_listings_7d: number | null;
   new_listings_30d: number | null;
+  pending_count: number | null;
+  months_of_supply: number | null;
   median_list_price: number | null;
   avg_list_price: number | null;
   median_price_per_sqft: number | null;
@@ -25,6 +28,7 @@ export type MarketStats = {
   price_change_yoy: number | null;
   inventory_change_mom: number | null;
   inventory_change_yoy: number | null;
+  homes_sold_change_yoy: number | null;
   dom_change_yoy: number | null;
 };
 

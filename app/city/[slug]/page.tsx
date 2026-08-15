@@ -39,18 +39,42 @@ export default async function CityPage({ params }: { params: { slug: string } })
       </header>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <StatTile label="Median list price" value={formatCurrency(stats?.median_list_price)} change={stats?.price_change_yoy} />
-        <StatTile label="Active inventory" value={formatNumber(stats?.active_inventory)} change={stats?.inventory_change_yoy} />
-        <StatTile label="Median days on market" value={formatDays(stats?.median_dom)} change={stats?.dom_change_yoy} />
+        <StatTile label="Median sold price" value={formatCurrency(stats?.median_sold_price)} change={stats?.price_change_yoy} />
+        <StatTile label="Median list price" value={formatCurrency(stats?.median_list_price)} />
         <StatTile label="$ / sqft" value={formatCurrency(stats?.median_price_per_sqft)} />
-        <StatTile label="Homes sold (30d)" value={formatNumber(stats?.homes_sold_30d)} />
-        <StatTile label="Median sold price" value={formatCurrency(stats?.median_sold_price)} />
+        <StatTile label="Median days on market" value={formatDays(stats?.median_dom)} change={stats?.dom_change_yoy} />
+        <StatTile label="Active inventory" value={formatNumber(stats?.active_inventory)} change={stats?.inventory_change_yoy} />
+        <StatTile label="Months of supply" value={stats?.months_of_supply != null ? `${stats.months_of_supply.toFixed(1)} mo` : "—"} />
+        <StatTile label="New listings (7d)" value={formatNumber(stats?.new_listings_7d)} />
+        <StatTile label="Pending" value={formatNumber(stats?.pending_count)} />
+        <StatTile label="Homes sold (30d)" value={formatNumber(stats?.homes_sold_30d)} change={stats?.homes_sold_change_yoy} />
         <StatTile label="Sold-to-list ratio" value={stats?.sold_to_list_ratio != null ? `${stats.sold_to_list_ratio.toFixed(1)}%` : "—"} />
         <StatTile label="Price change (MoM)" value={formatPercent(stats?.price_change_mom)} />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <TrendChart history={history} />
+        <TrendChart
+          history={history}
+          field="median_sold_price"
+          title="Median sold price over time"
+          tooltipLabel="Median sold price"
+          formatTick={(v) => `$${Math.round(v / 1000)}k`}
+          formatValue={(v) => `$${v.toLocaleString()}`}
+          emptyMessage="Sold-price history will appear once the backfill or a few weekly runs have completed."
+        />
+        <TrendChart
+          history={history}
+          field="active_inventory"
+          title="Active inventory over time"
+          tooltipLabel="Active inventory"
+          color="#16a34a"
+          formatTick={(v) => `${v}`}
+          formatValue={(v) => `${v} homes`}
+          emptyMessage="Inventory trend builds up week by week — check back after a few scrape runs."
+        />
+      </div>
+
+      <div className="mt-6">
         <TalkingPoints points={talkingPoints} />
       </div>
 

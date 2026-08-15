@@ -34,6 +34,7 @@ def fetch_city_data(location: str) -> dict[str, pd.DataFrame]:
     last_year_from = last_year_to - timedelta(days=SOLD_WINDOW_DAYS)
 
     active = _safe_scrape(location=location, listing_type="for_sale", limit=10000)
+    pending = _safe_scrape(location=location, listing_type="pending", limit=10000)
     sold_recent = _safe_scrape(
         location=location, listing_type="sold", date_from=str(recent_from), date_to=str(today), limit=10000
     )
@@ -50,6 +51,7 @@ def fetch_city_data(location: str) -> dict[str, pd.DataFrame]:
 
     return {
         "active": active,
+        "pending": pending,
         "sold_recent": sold_recent,
         "sold_prior": sold_prior,
         "sold_last_year": sold_last_year,

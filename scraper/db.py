@@ -32,6 +32,26 @@ def upsert_market_stats(row: dict) -> None:
     get_client().table("market_stats").upsert(row, on_conflict="city_id,run_date").execute()
 
 
+def get_stats_history(city_id: str) -> list[dict]:
+    """All prior market_stats rows for a city, oldest first.
+
+    Realtor.com only exposes a live snapshot of active inventory/list price —
+    there's no way to query "what was active a year ago". So month-over-month
+    and year-over-year changes for those fields are computed by comparing
+    against our own accumulated history here, not by re-querying Realtor.com.
+    Call this before upserting the current run's row.
+    """
+    res = (
+        get_client()
+        .table("market_stats")
+        .select("run_date, active_inventory, median_list_price")
+        .eq("city_id", city_id)
+        .order("run_date")
+        .execute()
+    )
+    return res.data or []
+
+
 def upsert_talking_points(row: dict) -> None:
     get_client().table("talking_points").upsert(
         row, on_conflict="city_id,run_date,audience"
