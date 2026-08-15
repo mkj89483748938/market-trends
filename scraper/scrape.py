@@ -15,7 +15,7 @@ def _empty_df() -> pd.DataFrame:
     return pd.DataFrame()
 
 
-def _safe_scrape(**kwargs) -> pd.DataFrame:
+def _scrape_once(**kwargs) -> pd.DataFrame:
     try:
         result = scrape_property(**kwargs)
         return result if result is not None else _empty_df()
@@ -24,20 +24,23 @@ def _safe_scrape(**kwargs) -> pd.DataFrame:
         return _empty_df()
 
 
-def _safe_scrape_active(**kwargs) -> pd.DataFrame:
-    """Active-listings scrape, with one retry on an empty result.
+def _safe_scrape(**kwargs) -> pd.DataFrame:
+    """Scrapes with one retry if the first attempt comes back empty.
 
-    A city genuinely having zero active listings while homes are still
-    selling there isn't realistic — an empty result is far more likely a
-    transient blocked/empty response from Realtor.com than reality, and it's
-    consequential: it silently blanks out median list price, $/sqft, DOM,
-    new listings, and months of supply for that run.
+    An empty result for a real Orange County city is far more likely a
+    transient blocked/empty response from Realtor.com than an actual zero —
+    we've seen this hit both an active-listings query (Westminster showing
+    0 active while 31 homes sold in the same 30 days) and a sold-listings
+    query (Anaheim, one of the largest cities in the county, showing no
+    90-day sold data). Retrying costs nothing when the result is
+    legitimately small/empty (a real small city's 30-day sold count, say) —
+    it just repeats and confirms it.
     """
-    result = _safe_scrape(**kwargs)
+    result = _scrape_once(**kwargs)
     if result.empty:
-        logger.warning("active-listings scrape came back empty for %s, retrying once", kwargs.get("location"))
+        logger.warning("scrape came back empty for %s, retrying once", kwargs)
         time.sleep(EMPTY_RETRY_PAUSE_SECONDS)
-        result = _safe_scrape(**kwargs)
+        result = _scrape_once(**kwargs)
     return result
 
 
@@ -51,7 +54,7 @@ def fetch_city_data(location: str) -> dict[str, pd.DataFrame]:
     last_year_to = today - timedelta(days=365)
     last_year_from = last_year_to - timedelta(days=SOLD_WINDOW_DAYS)
 
-    active = _safe_scrape_active(location=location, listing_type="for_sale", limit=10000)
+    active = _safe_scrape(location=location, listing_type="for_sale", limit=10000)
     pending = _safe_scrape(location=location, listing_type="pending", limit=10000)
     sold_recent = _safe_scrape(
         location=location, listing_type="sold", date_from=str(recent_from), date_to=str(today), limit=10000
