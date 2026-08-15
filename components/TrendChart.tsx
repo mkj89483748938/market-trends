@@ -7,14 +7,19 @@ type NumericStatsKey = {
   [K in keyof MarketStats]: MarketStats[K] extends number | null ? K : never;
 }[keyof MarketStats];
 
+// `kind` (rather than formatter functions) so all props stay serializable
+// across the server -> client boundary — this is a client component
+// instantiated from an async server component page.
+type TrendChartKind = "currency" | "count";
+
 export function TrendChart({
   history,
   field,
   title,
   tooltipLabel,
   color = "#2f6fed",
-  formatTick,
-  formatValue,
+  kind,
+  unit,
   emptyMessage,
 }: {
   history: MarketStats[];
@@ -22,8 +27,8 @@ export function TrendChart({
   title: string;
   tooltipLabel: string;
   color?: string;
-  formatTick: (value: number) => string;
-  formatValue: (value: number) => string;
+  kind: TrendChartKind;
+  unit?: string;
   emptyMessage: string;
 }) {
   const points = history
@@ -42,6 +47,11 @@ export function TrendChart({
     date: new Date(row.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     value: row.value,
   }));
+
+  const formatTick = (value: number) =>
+    kind === "currency" ? `$${Math.round(value / 1000)}k` : `${value}`;
+  const formatValue = (value: number) =>
+    kind === "currency" ? `$${value.toLocaleString()}` : `${value}${unit ? ` ${unit}` : ""}`;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">

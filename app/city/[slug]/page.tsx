@@ -58,8 +58,7 @@ export default async function CityPage({ params }: { params: { slug: string } })
           field="median_sold_price"
           title="Median sold price over time"
           tooltipLabel="Median sold price"
-          formatTick={(v) => `$${Math.round(v / 1000)}k`}
-          formatValue={(v) => `$${v.toLocaleString()}`}
+          kind="currency"
           emptyMessage="Sold-price history will appear once the backfill or a few weekly runs have completed."
         />
         <TrendChart
@@ -68,8 +67,8 @@ export default async function CityPage({ params }: { params: { slug: string } })
           title="Active inventory over time"
           tooltipLabel="Active inventory"
           color="#16a34a"
-          formatTick={(v) => `${v}`}
-          formatValue={(v) => `${v} homes`}
+          kind="count"
+          unit="homes"
           emptyMessage="Inventory trend builds up week by week — check back after a few scrape runs."
         />
       </div>
