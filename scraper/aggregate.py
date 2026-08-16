@@ -247,6 +247,69 @@ def build_active_listings(
     return rows
 
 
+def build_recent_sales(
+    city_id: str,
+    run_date: str,
+    sold_recent: pd.DataFrame,
+    segment: str = SEGMENT_ALL,
+    limit: int = 25,
+) -> list[dict]:
+    """Most recently closed sales for a city + segment, newest first."""
+    sold = segment_frame(sold_recent, segment)
+    if sold is None or sold.empty:
+        return []
+
+    df = sold.copy()
+    # last_sold_date is the actual close date. Falling back to days_on_mls
+    # would be wrong here — a home can sit for 90 days and close yesterday,
+    # so DOM says nothing about recency of the sale. If the column is
+    # missing entirely we leave the frame in the order it arrived rather
+    # than sorting by something that doesn't mean "recent".
+    if "last_sold_date" in df.columns:
+        df["_sold_at"] = pd.to_datetime(df["last_sold_date"], errors="coerce")
+        df = df.sort_values("_sold_at", ascending=False, na_position="last")
+    else:
+        logger.warning("no 'last_sold_date' column; recent sales will be unsorted")
+    df = df.head(limit)
+
+    rows = []
+    for _, row in df.iterrows():
+        address_parts = [row.get("street"), row.get("unit"), row.get("city"), row.get("state")]
+        address = ", ".join(str(p) for p in address_parts if pd.notna(p) and str(p).strip())
+
+        rows.append(
+            {
+                "city_id": city_id,
+                "run_date": run_date,
+                "property_segment": segment,
+                "address": address or None,
+                "sold_price": _to_float(row.get("sold_price")),
+                "list_price": _to_float(row.get("list_price")),
+                "sold_date": _to_date_string(row.get("last_sold_date")),
+                "beds": _to_float(row.get("beds")),
+                "baths": _to_float(row.get("full_baths")),
+                "sqft": _to_float(row.get("sqft")),
+                "days_on_market": _to_int(row.get("days_on_mls")),
+                "property_url": row.get("property_url") if pd.notna(row.get("property_url")) else None,
+            }
+        )
+    return rows
+
+
+def _to_date_string(value) -> str | None:
+    """Postgres `date` column wants YYYY-MM-DD, and HomeHarvest hands back a
+    datetime (or NaT). json can't serialize either one."""
+    try:
+        if value is None or pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        return None
+    parsed = pd.to_datetime(value, errors="coerce")
+    if pd.isna(parsed):
+        return None
+    return parsed.strftime("%Y-%m-%d")
+
+
 def _to_float(value) -> float | None:
     try:
         if value is None or pd.isna(value):

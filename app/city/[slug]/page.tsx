@@ -5,13 +5,20 @@ import { TrendChart } from "@/components/TrendChart";
 import { TalkingPoints } from "@/components/TalkingPoints";
 import { SegmentToggle } from "@/components/SegmentToggle";
 import { LastUpdated } from "@/components/LastUpdated";
-import { formatCurrency, formatDays, formatNumber, formatPercent, formatRunDate } from "@/lib/format";
+import {
+  formatCurrency,
+  formatDays,
+  formatMonths,
+  formatNumber,
+  formatPercent,
+  formatRunDate,
+} from "@/lib/format";
 import { PROPERTY_SEGMENTS, isPropertySegment } from "@/lib/types";
 import {
   getCityBySlug,
-  getLatestActiveListings,
   getLatestStatsForCity,
   getLatestTalkingPoints,
+  getRecentSales,
   getStatsHistory,
 } from "@/lib/queries";
 
@@ -30,11 +37,11 @@ export default async function CityPage({
   const segment = isPropertySegment(searchParams.segment) ? searchParams.segment : "all";
   const segmentLabel = PROPERTY_SEGMENTS.find((s) => s.value === segment)?.label ?? "All types";
 
-  const [stats, history, talkingPoints, listings] = await Promise.all([
+  const [stats, history, talkingPoints, sales] = await Promise.all([
     getLatestStatsForCity(city.id, segment),
     getStatsHistory(city.id, segment),
     getLatestTalkingPoints(city.id),
-    getLatestActiveListings(city.id, segment),
+    getRecentSales(city.id, segment),
   ]);
 
   return (
@@ -77,7 +84,7 @@ export default async function CityPage({
         <StatTile label="$ / sqft" value={formatCurrency(stats?.median_price_per_sqft)} />
         <StatTile label="Median days on market" value={formatDays(stats?.median_dom)} change={stats?.dom_change_yoy} />
         <StatTile label="Active inventory" value={formatNumber(stats?.active_inventory)} change={stats?.inventory_change_yoy} />
-        <StatTile label="Months of supply" value={stats?.months_of_supply != null ? `${stats.months_of_supply.toFixed(1)} mo` : "—"} />
+        <StatTile label="Months of supply" value={formatMonths(stats?.months_of_supply)} />
         <StatTile label="New listings (7d)" value={formatNumber(stats?.new_listings_7d)} />
         <StatTile label="Pending" value={formatNumber(stats?.pending_count)} />
         <StatTile label="Homes sold (30d)" value={formatNumber(stats?.homes_sold_30d)} change={stats?.homes_sold_change_yoy} />
@@ -110,45 +117,56 @@ export default async function CityPage({
         <TalkingPoints points={talkingPoints} />
       </div>
 
-      {listings.length > 0 && (
+      {sales.length > 0 && (
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Recent active listings
+            Recently sold
+          </p>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+            Closed sales from the last 30 days, most recent first.
           </p>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="text-slate-500 dark:text-slate-400">
                   <th className="pb-2 pr-4 font-medium">Address</th>
-                  <th className="pb-2 pr-4 font-medium">Price</th>
+                  <th className="pb-2 pr-4 font-medium">Sold</th>
+                  <th className="pb-2 pr-4 font-medium">Asked</th>
                   <th className="pb-2 pr-4 font-medium">Beds/Baths</th>
                   <th className="pb-2 pr-4 font-medium">Sqft</th>
-                  <th className="pb-2 font-medium">DOM</th>
+                  <th className="pb-2 pr-4 font-medium">DOM</th>
+                  <th className="pb-2 font-medium">Closed</th>
                 </tr>
               </thead>
               <tbody>
-                {listings.map((listing) => (
-                  <tr key={listing.id} className="border-t border-slate-100 dark:border-slate-700">
+                {sales.map((sale) => (
+                  <tr key={sale.id} className="border-t border-slate-100 dark:border-slate-700">
                     <td className="py-2 pr-4">
-                      {listing.property_url ? (
+                      {sale.property_url ? (
                         <a
-                          href={listing.property_url}
+                          href={sale.property_url}
                           target="_blank"
                           rel="noreferrer"
                           className="text-brand-600 hover:underline dark:text-brand-500"
                         >
-                          {listing.address ?? "View listing"}
+                          {sale.address ?? "View listing"}
                         </a>
                       ) : (
-                        (listing.address ?? "—")
+                        (sale.address ?? "—")
                       )}
                     </td>
-                    <td className="py-2 pr-4">{formatCurrency(listing.list_price)}</td>
-                    <td className="py-2 pr-4">
-                      {listing.beds ?? "—"} / {listing.baths ?? "—"}
+                    <td className="py-2 pr-4 font-medium text-slate-900 dark:text-slate-100">
+                      {formatCurrency(sale.sold_price)}
                     </td>
-                    <td className="py-2 pr-4">{formatNumber(listing.sqft)}</td>
-                    <td className="py-2">{listing.days_on_market ?? "—"}</td>
+                    <td className="py-2 pr-4 text-slate-500 dark:text-slate-400">
+                      {formatCurrency(sale.list_price)}
+                    </td>
+                    <td className="py-2 pr-4">
+                      {sale.beds ?? "—"} / {sale.baths ?? "—"}
+                    </td>
+                    <td className="py-2 pr-4">{formatNumber(sale.sqft)}</td>
+                    <td className="py-2 pr-4">{sale.days_on_market ?? "—"}</td>
+                    <td className="py-2 whitespace-nowrap">{formatRunDate(sale.sold_date)}</td>
                   </tr>
                 ))}
               </tbody>

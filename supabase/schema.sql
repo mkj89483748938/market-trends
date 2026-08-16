@@ -72,8 +72,32 @@ create table if not exists market_trends.active_listings (
   created_at timestamptz not null default now()
 );
 
+-- Recently closed sales, shown on the city page as comps. Sold prices are
+-- what a home actually traded for; the active-listing table this replaced
+-- showed asking prices, which is a different (and softer) claim to make to
+-- a client.
+create table if not exists market_trends.recent_sales (
+  id uuid primary key default gen_random_uuid(),
+  city_id uuid not null references market_trends.cities(id) on delete cascade,
+  run_date date not null,
+  property_segment text not null default 'all',
+  address text,
+  sold_price numeric,
+  list_price numeric,
+  sold_date date,
+  beds numeric,
+  baths numeric,
+  sqft numeric,
+  days_on_market integer,
+  property_url text,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists market_stats_city_date_idx
   on market_trends.market_stats (city_id, run_date desc);
+
+create index if not exists recent_sales_city_segment_idx
+  on market_trends.recent_sales (city_id, property_segment, sold_date desc);
 
 create index if not exists active_listings_city_date_idx
   on market_trends.active_listings (city_id, run_date desc);
@@ -126,6 +150,16 @@ select distinct on (city_id, audience) *
 from market_trends.talking_points
 order by city_id, audience, run_date desc;
 
+drop view if exists market_trends.latest_recent_sales;
+create view market_trends.latest_recent_sales as
+select rs.*
+from market_trends.recent_sales rs
+join (
+  select city_id, max(run_date) as run_date
+  from market_trends.recent_sales
+  group by city_id
+) latest on latest.city_id = rs.city_id and latest.run_date = rs.run_date;
+
 drop view if exists market_trends.latest_active_listings;
 create view market_trends.latest_active_listings as
 select al.*
@@ -148,6 +182,7 @@ alter table market_trends.cities enable row level security;
 alter table market_trends.market_stats enable row level security;
 alter table market_trends.talking_points enable row level security;
 alter table market_trends.active_listings enable row level security;
+alter table market_trends.recent_sales enable row level security;
 
 -- Creating a schema does not by itself grant Supabase's Postgres roles
 -- access to it. The app and scraper only ever use the service role key

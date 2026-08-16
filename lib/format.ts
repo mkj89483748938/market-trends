@@ -18,6 +18,11 @@ export function formatPercent(value: number | null | undefined): string {
   return `${sign}${value.toFixed(1)}%`;
 }
 
+export function formatMonths(value: number | null | undefined): string {
+  if (value == null) return "—";
+  return `${value.toFixed(1)} mo`;
+}
+
 export function formatDays(value: number | null | undefined): string {
   if (value == null) return "—";
   return `${Math.round(value)} days`;

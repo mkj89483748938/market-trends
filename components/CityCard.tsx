@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatCurrency, formatDays, formatNumber, trendDirection } from "@/lib/format";
+import { formatCurrency, formatDays, formatMonths, formatNumber, trendDirection } from "@/lib/format";
 import type { City, MarketStats } from "@/lib/types";
 
 export function CityCard({ city, stats }: { city: City; stats?: MarketStats }) {
@@ -40,8 +40,8 @@ export function CityCard({ city, stats }: { city: City; stats?: MarketStats }) {
             <dd className="font-medium text-slate-900 dark:text-slate-100">{formatDays(stats.median_dom)}</dd>
           </div>
           <div>
-            <dt className="text-slate-500 dark:text-slate-400">$ / sqft</dt>
-            <dd className="font-medium text-slate-900 dark:text-slate-100">{formatCurrency(stats.median_price_per_sqft)}</dd>
+            <dt className="text-slate-500 dark:text-slate-400">Months of supply</dt>
+            <dd className="font-medium text-slate-900 dark:text-slate-100">{formatMonths(stats.months_of_supply)}</dd>
           </div>
         </dl>
       ) : (

@@ -55,6 +55,22 @@ export type TalkingPoints = {
   points: string[];
 };
 
+export type RecentSale = {
+  id: string;
+  city_id: string;
+  run_date: string;
+  property_segment: PropertySegment;
+  address: string | null;
+  sold_price: number | null;
+  list_price: number | null;
+  sold_date: string | null;
+  beds: number | null;
+  baths: number | null;
+  sqft: number | null;
+  days_on_market: number | null;
+  property_url: string | null;
+};
+
 export type ActiveListing = {
   id: string;
   city_id: string;

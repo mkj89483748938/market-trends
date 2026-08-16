@@ -6,6 +6,7 @@ import type {
   City,
   MarketStats,
   PropertySegment,
+  RecentSale,
   TalkingPoints,
 } from "./types";
 
@@ -108,6 +109,23 @@ export async function getLatestTalkingPoints(cityId: string): Promise<Record<Aud
     result[row.audience] = row.points ?? [];
   }
   return result;
+}
+
+export async function getRecentSales(
+  cityId: string,
+  segment: PropertySegment = "all",
+  limit = 12
+): Promise<RecentSale[]> {
+  const supabase = getServiceClient();
+  const { data, error } = await supabase
+    .from("latest_recent_sales")
+    .select("*")
+    .eq("city_id", cityId)
+    .eq("property_segment", segment)
+    .order("sold_date", { ascending: false, nullsFirst: false })
+    .limit(limit);
+  if (error) throw error;
+  return data ?? [];
 }
 
 export async function getLatestActiveListings(

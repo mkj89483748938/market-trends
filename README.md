@@ -14,8 +14,11 @@ and LLM-generated talking points agents can use with buyers or sellers.
 - **Next.js app** (`app/`, `components/`, `lib/`) — reads from Supabase and
   renders the dashboard. Deployed on Vercel. All Supabase access happens
   server-side with the service role key — nothing is exposed to the browser.
-- **Auth** — a single shared password gate (`DASHBOARD_PASSWORD`), enforced by
-  `middleware.ts`. No per-agent accounts in v1.
+- **Auth** — none. The dashboard is publicly readable: it only shows
+  aggregate market data, and page views cost nothing (talking points are
+  generated during the weekly scrape, not per request). Supabase is still
+  only ever reached server-side with the service role key, so no credential
+  and no write path is exposed to the browser.
 
 Data lives in its own `market_trends` Postgres schema, so it can share a
 Supabase project with other apps (e.g. a lead-cache table in `public`)
@@ -45,7 +48,6 @@ Connect this repo in Vercel, then set these environment variables in
 |---|---|
 | `SUPABASE_URL` | Your Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Your Supabase service role key (server-only — never prefix with `NEXT_PUBLIC_`) |
-| `DASHBOARD_PASSWORD` | Whatever shared password your agents will use to log in |
 
 ### 3. GitHub Actions (scraper)
 
@@ -76,7 +78,7 @@ backfilled the same way — it fills in naturally as weekly runs accumulate.
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, DASHBOARD_PASSWORD
+cp .env.example .env.local   # fill in SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 npm run dev
 ```
 
@@ -131,6 +133,11 @@ the MLS.
 
 ## Notes / known limitations (v1)
 
+- The city page's bottom table shows **recently closed sales**, not active
+  listings. Sold prices are what homes actually traded for; asking prices
+  are a softer claim to put in front of a client. Active listings are still
+  scraped and stored (`active_listings`), just not displayed — the
+  inventory/DOM/list-price tiles above are all computed from them.
 - Every page shows a **"Data last updated"** note with the date of the run
   that produced the figures on screen. It turns amber past 10 days, which
   means a weekly run was missed or failed — the dashboard has no way to tell

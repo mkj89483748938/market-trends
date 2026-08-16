@@ -61,6 +61,19 @@ def upsert_talking_points(row: dict) -> None:
     ).execute()
 
 
+def replace_recent_sales(city_id: str, sales: list[dict]) -> None:
+    """Swaps in this run's sold comps for a city (all segments at once).
+
+    Same all-segments-together contract as replace_active_listings: the
+    delete is per-city, so calling this once per segment would wipe the
+    segments written earlier in the same run.
+    """
+    client = get_client()
+    client.table("recent_sales").delete().eq("city_id", city_id).execute()
+    if sales:
+        client.table("recent_sales").insert(sales).execute()
+
+
 def replace_active_listings(city_id: str, listings: list[dict]) -> None:
     """Swaps in this run's listing snapshot for a city (all segments at once).
 

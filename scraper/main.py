@@ -7,6 +7,7 @@ from aggregate import (
     SEGMENTS,
     build_active_listings,
     build_market_stats,
+    build_recent_sales,
     log_style_distribution,
 )
 from cities import CITIES, query_location
@@ -14,6 +15,7 @@ from db import (
     ensure_cities,
     get_stats_history,
     replace_active_listings,
+    replace_recent_sales,
     upsert_market_stats,
     upsert_talking_points,
 )
@@ -57,6 +59,7 @@ def run() -> None:
             # vs. "Condos") instead of only showing a blended all-types number.
             all_segment_stats = {}
             listings: list[dict] = []
+            sales: list[dict] = []
             for segment in SEGMENTS:
                 history = get_stats_history(city_id, segment)
                 stats = build_market_stats(city_id, run_date, data, history, segment)
@@ -71,8 +74,11 @@ def run() -> None:
                 )
                 upsert_market_stats(stats)
                 listings.extend(build_active_listings(city_id, run_date, data["active"], segment))
+                sales.extend(build_recent_sales(city_id, run_date, data["sold_recent"], segment))
 
             replace_active_listings(city_id, listings)
+            replace_recent_sales(city_id, sales)
+            logger.info("  wrote %d active listing(s), %d recent sale(s)", len(listings), len(sales))
 
             # Talking points are generated from the all-types view, matching
             # the dashboard's default segment.
