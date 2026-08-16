@@ -4,7 +4,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "OC Market Trends",
+  title: "OC Market Scanner",
   description: "Orange County real estate market trends for agents",
 };
 
