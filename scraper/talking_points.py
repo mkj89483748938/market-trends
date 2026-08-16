@@ -19,7 +19,8 @@ city's current whole-market stats. Produce two short lists:
   right now (e.g. pricing strategy, how fast homes are moving, demand).
 
 Rules:
-- Each bullet is one sentence, conversational, no jargon, safe to repeat verbatim to a client.
+- Each bullet is one sentence under 30 words, conversational, no jargon, safe to \
+repeat verbatim to a client.
 - Never use percentages or percent signs. Describe movement in plain words instead \
   ("prices have been climbing since the spring", "homes are sitting a little longer than \
   they did a year ago"). Whole dollar figures and counts are fine.
@@ -138,7 +139,9 @@ def _extract_json(text: str) -> dict:
         index = end
 
     if not merged:
-        raise ValueError(f"no JSON object found in response: {text[:200]!r}")
+        raise ValueError(
+            "no complete JSON object in response (truncated?): " f"{text[:200]!r}"
+        )
     return merged
 
 
@@ -165,12 +168,20 @@ def generate_talking_points(city_name: str, stats: dict) -> dict[str, list[str]]
     try:
         response = client.messages.create(
             model=MODEL,
-            # 6-8 one-sentence bullets plus JSON scaffolding lands near 300
-            # tokens; the headroom is for a stray preamble, not for length.
-            max_tokens=700,
+            # Billing is on tokens actually generated, not on this cap, so a
+            # generous ceiling costs nothing and a tight one just truncates
+            # the JSON mid-string. 700 was too tight for wordier cities
+            # (Dana Point, Villa Park) and lost their points entirely.
+            max_tokens=1500,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_prompt}],
         )
+        if response.stop_reason == "max_tokens":
+            # Say so plainly — otherwise this surfaces downstream as a
+            # confusing "no JSON object found" parse error.
+            logger.warning(
+                "response for %s hit the max_tokens ceiling and was truncated", city_name
+            )
         text = "".join(block.text for block in response.content if block.type == "text")
         parsed = _extract_json(text)
         buyer = [str(p) for p in parsed.get("buyer", [])]
