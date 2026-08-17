@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { formatShortDate } from "@/lib/format";
 import type { MarketStats } from "@/lib/types";
 
 type NumericStatsKey = {
@@ -65,7 +66,7 @@ export function TrendChart({
   }
 
   const data = points.map((row) => ({
-    date: new Date(row.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    date: formatShortDate(row.date),
     value: row.value,
   }));
 

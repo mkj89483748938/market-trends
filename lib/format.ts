@@ -52,6 +52,14 @@ export function formatRunDate(value: string | null | undefined): string {
   });
 }
 
+/** Short axis label for a run_date, e.g. "Aug 15". Local-parsed, so it
+ *  doesn't land a day early the way `new Date("2026-08-15")` does. */
+export function formatShortDate(value: string): string {
+  const parsed = parseRunDate(value);
+  if (!parsed) return value;
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 /** Whole days between a run_date and today, or null if unparseable. */
 export function daysSince(value: string | null | undefined): number | null {
   if (!value) return null;
