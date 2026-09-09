@@ -5,7 +5,14 @@ from datetime import date, timedelta
 import pandas as pd
 from homeharvest import scrape_property
 
+import realtor_patch
+
 logger = logging.getLogger("market_trends.scrape")
+
+# Refreshed headers + a browser-like TLS handshake, applied once at import.
+# Realtor.com began 403ing HomeHarvest's stock client signature on
+# 2026-09-07 and upstream has no newer release to move to.
+_TRANSPORT = realtor_patch.apply()
 
 SOLD_WINDOW_DAYS = 30
 EMPTY_RETRY_PAUSE_SECONDS = 5
@@ -17,6 +24,9 @@ def _empty_df() -> pd.DataFrame:
 
 def _scrape_once(**kwargs) -> pd.DataFrame:
     try:
+        proxy = realtor_patch.get_proxy()
+        if proxy:
+            kwargs.setdefault("proxy", proxy)
         result = scrape_property(**kwargs)
         return result if result is not None else _empty_df()
     except Exception:  # noqa: BLE001 - one city's failure shouldn't kill the run
