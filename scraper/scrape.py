@@ -103,6 +103,17 @@ def exclude_pending(active: pd.DataFrame, pending: pd.DataFrame) -> pd.DataFrame
     return cleaned
 
 
+def is_empty_result(data: dict[str, pd.DataFrame]) -> bool:
+    """True when every query for a city came back with nothing.
+
+    A real Orange County city always has *something* — active listings, or
+    sales, or both. All five frames empty means we were blocked or the
+    upstream API changed, not that the market vanished. Callers use this to
+    skip the city rather than write zeros over last week's real numbers.
+    """
+    return all(df is None or df.empty for df in data.values())
+
+
 def fetch_city_data(location: str) -> dict[str, pd.DataFrame]:
     """Fetches everything needed to compute one city's stats for one run."""
     today = date.today()
