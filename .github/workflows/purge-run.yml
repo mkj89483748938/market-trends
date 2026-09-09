@@ -1,0 +1,37 @@
+name: Purge a bad scrape run
+
+# Deletes every row one scrape run wrote. Use when a run stores bad data —
+# e.g. 2026-09-07, when Realtor.com's 403s made the scraper record zeros for
+# every city, which showed on the trend charts as a dip to zero.
+#
+# There is no schedule and no default date: it only ever runs when someone
+# clicks it and types a date.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_date:
+        description: "run_date to delete, as YYYY-MM-DD (e.g. 2026-09-07)"
+        required: true
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r scraper/requirements.txt
+
+      - name: Purge
+        working-directory: scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RUN_DATE: ${{ inputs.run_date }}
+        run: python purge_run.py
