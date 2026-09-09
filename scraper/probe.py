@@ -21,9 +21,20 @@ logger = logging.getLogger("market_trends.probe")
 PROBE_LOCATION = "Irvine, CA"
 
 
-def _try(label: str, use_impersonation: bool | None, use_proxy: bool) -> tuple[str, str]:
-    """Returns (label, outcome). Never raises — every strategy gets a turn."""
-    # Re-import per attempt so the patch is applied to a fresh module state.
+def _try(label: str, patch: str, use_proxy: bool) -> tuple[str, str]:
+    """Returns (label, outcome). Never raises — every strategy gets a turn.
+
+    `patch` is one of:
+      "none"        — HomeHarvest exactly as shipped, no patching at all.
+                      This is the control: if it passes, whatever was
+                      blocking us has lifted on its own and our patches
+                      aren't what's carrying the run.
+      "headers"     — refreshed headers, HomeHarvest's own `requests`.
+      "impersonate" — refreshed headers plus a Chrome TLS handshake.
+    """
+    # Re-import per attempt so each starts from unpatched module state —
+    # otherwise a previous attempt's patch leaks into this one and every
+    # row reports on the same configuration.
     for name in list(sys.modules):
         if name.startswith("homeharvest") or name in ("realtor_patch", "scrape"):
             del sys.modules[name]
@@ -31,10 +42,11 @@ def _try(label: str, use_impersonation: bool | None, use_proxy: bool) -> tuple[s
     import realtor_patch
     from homeharvest import scrape_property
 
-    try:
-        realtor_patch.apply(use_impersonation=use_impersonation)
-    except Exception as exc:  # noqa: BLE001
-        return label, f"PATCH FAILED: {type(exc).__name__}: {exc}"
+    if patch != "none":
+        try:
+            realtor_patch.apply(use_impersonation=(patch == "impersonate"))
+        except Exception as exc:  # noqa: BLE001
+            return label, f"PATCH FAILED: {type(exc).__name__}: {exc}"
 
     kwargs = {"location": PROBE_LOCATION, "listing_type": "for_sale", "limit": 5}
     if use_proxy:
@@ -62,18 +74,27 @@ def main() -> int:
     )
 
     results = [
-        _try("plain requests (HomeHarvest stock behavior)", False, False),
-        _try("curl_cffi Chrome impersonation", True, False),
-        _try("curl_cffi + SCRAPER_PROXY", True, True),
+        _try("unpatched HomeHarvest (control)", "none", False),
+        _try("refreshed headers, plain requests", "headers", False),
+        _try("refreshed headers + Chrome TLS handshake", "impersonate", False),
+        _try("refreshed headers + TLS + SCRAPER_PROXY", "impersonate", True),
     ]
 
     print("\n=== Realtor.com probe results ===")
     for label, outcome in results:
-        print(f"  {label:45} {outcome}")
+        print(f"  {label:42} {outcome}")
     print()
 
+    control_ok = results[0][1].startswith("OK")
     if any(outcome.startswith("OK") for _, outcome in results):
-        logger.info("At least one transport works — the scraper can run.")
+        if control_ok:
+            logger.info(
+                "The unpatched control passed, so Realtor.com is not blocking "
+                "us at all right now — the patches aren't what's carrying the "
+                "run, and this tells us nothing about whether they'd help."
+            )
+        else:
+            logger.info("Patched transports work; the unpatched control does not.")
         return 0
 
     logger.error(
