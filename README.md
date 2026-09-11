@@ -106,11 +106,32 @@ every city. Cities outside the pilot show no card at all rather than an empty
 one, and cost no API call.
 
 They differ from talking points deliberately: talking points are lines to say
-on a call, these are messages short enough to send as written. So the prompt
-asks for a reason the text is arriving, exactly one `{first_name}` placeholder,
-one easy closing question, no emoji or hype openers, and under 300 characters
-(SMS splits past 160 — messages over the limit are flagged in the run logs).
-Percentages are banned here too, matching the talking points.
+on a call, these are messages short enough to send as written, aimed at a lead
+who has stalled. So the prompt asks them to teach first and invite second —
+give a real reason this moment is worth acting on, then one easy question.
+
+**What the texts may and may not cite** is enforced in the payload, not just
+the prompt. `_format_sms_stats` sends two buckets:
+
+- **Counts they may quote** — homes for sale, new listings this week, homes
+  under contract, homes sold in 30 days. Concrete and hard to dispute.
+- **Trends they may only describe in words** — prices and days-on-market
+  reach the model as direction words ("lower", "longer") and never as
+  figures. Months of supply becomes a market description ("homes are getting
+  picked up quickly and sellers have the advantage") using the standard
+  <3 / 3–6 / >6 month thresholds.
+
+Prices and DOM figures are never sent at all, so there is nothing for the
+model to leak even if the prompt were ignored. Percentages are banned here as
+everywhere. Also under 300 characters (SMS splits past 160 — over-length
+messages are flagged in the run logs), exactly one `{first_name}`, no emoji,
+no "Just checking in!" openers.
+
+Urgency has to come from the market facts provided — the prompt explicitly
+rules out invented deadlines, "this window is closing", FOMO, and any
+prediction or guarantee about where prices or rates are heading. That keeps
+the persuasion honest and the messages defensible if a client ever quotes one
+back.
 
 One thing the app can't decide for you: texting leads is subject to consent
 rules (TCPA and California's equivalents), and whether a given lead can be

@@ -14,7 +14,7 @@ import os
 
 from anthropic import Anthropic
 
-from talking_points import MODEL, _extract_json, _format_stats
+from talking_points import MODEL, _direction, _extract_json, _offer_strength
 
 logger = logging.getLogger("market_trends.text_messages")
 
@@ -24,27 +24,116 @@ logger = logging.getLogger("market_trends.text_messages")
 MAX_MESSAGE_CHARS = 320
 
 SYSTEM_PROMPT = """You write short follow-up text messages that a real estate agent \
-in Orange County, CA sends to a lead they have already spoken with. You will be given \
-one city's current market numbers. Produce two lists:
+in Orange County, CA sends to a lead they have already spoken with but who has gone \
+quiet. Produce two lists:
 
-- "buyer": 3 messages to a prospective BUYER lead who has gone quiet.
-- "seller": 3 messages to a prospective SELLER lead who has gone quiet.
+- "buyer": 3 messages to a prospective BUYER lead.
+- "seller": 3 messages to a prospective SELLER lead.
 
-Rules:
+What these texts are for: moving someone off the fence. The lead is interested but \
+stalled, and the job is to give them a real reason this moment is worth acting on, \
+explained clearly enough that they learn something about their market. Teach, then \
+invite — the market facts are what make it persuasive, so lead with what's genuinely \
+happening and let that do the work.
+
+Numbers:
+- You MAY quote the counts of homes given below (homes for sale, new listings, homes \
+under contract, homes sold). Those are concrete and easy to picture.
+- You must NOT state any price, dollar amount, or number of days. Describe prices and \
+how fast homes are selling in words only, using the trends given \
+("prices have eased since the spring", "homes are sitting a little longer than they \
+were last year"). No percentages or percent signs anywhere.
+- Never invent a number, trend, or fact that wasn't provided.
+
+Style:
 - Each message is a complete text, ready to send with no editing, under 300 characters.
-- Write like a person texting, not like marketing copy. No emoji, no ALL CAPS, no \
-exclamation-heavy hype, no "Just checking in!" openers.
+- Write like a person texting, not marketing copy. No emoji, no ALL CAPS, no \
+"Just checking in!" openers, no more than one exclamation mark across all six messages.
 - Use {first_name} exactly once at the start as a placeholder for the lead's name.
-- Give the text a reason to exist: one specific, current fact about their city's market \
-from the numbers provided, in plain words.
-- Never use percentages or percent signs. Whole dollar figures and counts are fine.
-- Never invent a number that wasn't provided.
 - End with one short, easy question that invites a reply.
-- No legal, tax, or financial advice. Never guarantee future prices or promise a result.
+
+Lines not to cross:
+- Build urgency only from the market facts you were given. No invented deadlines, no \
+"this window is closing", no fear of missing out, no pressure.
+- Never predict or guarantee where prices, rates, or the market are heading.
+- No legal, tax, or financial advice.
 - Don't claim the lead did something they may not have done (no "since you toured...").
-- Respond with ONLY one valid JSON object containing both lists, and nothing else: \
+
+Respond with ONLY one valid JSON object containing both lists, and nothing else: \
 {"buyer": ["...", "..."], "seller": ["...", "..."]}
 """
+
+# Counts the messages are allowed to quote: whole homes, easy to picture, and
+# nothing a client could dispute.
+_QUOTABLE_COUNTS = (
+    ("active_inventory", "homes for sale right now"),
+    ("new_listings_7d", "new listings this week"),
+    ("pending_count", "homes currently under contract"),
+    ("homes_sold_30d", "homes sold in the last 30 days"),
+)
+
+# Prices and days-on-market reach the model as direction words only. The
+# figures themselves are deliberately never sent: the prompt forbids quoting
+# them, so including them would be paid-for context the model can't use and a
+# number it might leak anyway.
+_TREND_FIELDS = (
+    ("price_change_vs_90d", "prices compared with three months ago", "higher", "lower"),
+    ("price_change_yoy", "prices compared with a year ago", "higher", "lower"),
+    ("inventory_change_yoy", "homes to choose from compared with a year ago", "more", "fewer"),
+    ("dom_change_yoy", "how long homes take to sell compared with a year ago", "longer", "shorter"),
+)
+
+
+def _market_balance(months_of_supply: float | None) -> str | None:
+    """Months of supply as a plain-English market description.
+
+    The industry rule of thumb: under ~3 months favours sellers, over ~6
+    favours buyers. Sent as words so the model has the market's character
+    without a figure it would be tempted to quote.
+    """
+    if months_of_supply is None:
+        return None
+    if months_of_supply < 3:
+        return "homes are getting picked up quickly and sellers have the advantage"
+    if months_of_supply > 6:
+        return "homes are taking a while to sell and buyers have room to negotiate"
+    return "supply and demand are fairly balanced right now"
+
+
+def _format_sms_stats(stats: dict) -> str:
+    """Percent-free, price-free payload for the follow-up texts.
+
+    Separate from the talking points' payload because the rules differ: the
+    talking points may cite a median price, these may not.
+    """
+    counts = []
+    for key, label in _QUOTABLE_COUNTS:
+        value = stats.get(key)
+        if value is not None:
+            counts.append(f"- {label}: {round(float(value))}")
+
+    trends = []
+    for key, label, up_word, down_word in _TREND_FIELDS:
+        direction = _direction(stats.get(key), up_word, down_word)
+        if direction is not None:
+            trends.append(f"- {label}: {direction}")
+
+    balance = _market_balance(stats.get("months_of_supply"))
+    if balance:
+        trends.append(f"- {balance}")
+
+    offers = _offer_strength(stats.get("sold_to_list_ratio"))
+    if offers:
+        trends.append(f"- {offers}")
+
+    sections = []
+    if counts:
+        sections.append("Counts you may quote:\n" + "\n".join(counts))
+    if trends:
+        sections.append(
+            "Trends — describe these in words, never as a figure:\n" + "\n".join(trends)
+        )
+    return "\n\n".join(sections)
 
 
 def generate_text_messages(city_name: str, stats: dict) -> dict[str, list[str]] | None:
@@ -55,7 +144,7 @@ def generate_text_messages(city_name: str, stats: dict) -> dict[str, list[str]] 
         logger.warning("ANTHROPIC_API_KEY not set, skipping text message generation")
         return None
 
-    stat_lines = _format_stats(stats)
+    stat_lines = _format_sms_stats(stats)
     if not stat_lines:
         logger.warning("no usable stats for %s, skipping text messages", city_name)
         return None
