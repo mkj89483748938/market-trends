@@ -5,12 +5,16 @@ a call; these are messages short enough to send as written, which makes them
 a different writing problem: they need a reason for arriving, one question,
 and a length that doesn't get split into three SMS segments.
 
-Reuses the same percent-free, absolute-figures payload as the talking
-points, so both features describe the market the same way.
+The payload is deliberately NOT the talking points' one: these messages may
+quote counts of homes but never a price or a number of days, so prices and
+DOM are sent as direction words only and the figures never leave the
+scraper. See _format_sms_stats.
 """
 
+import json
 import logging
 import os
+import re
 
 from anthropic import Anthropic
 
@@ -150,6 +154,42 @@ def _format_sms_stats(stats: dict) -> str:
     return "\n\n".join(sections)
 
 
+def _salvage_messages(text: str) -> dict[str, list[str]]:
+    """Pulls whatever complete messages exist out of a truncated response.
+
+    A response cut off mid-string is not valid JSON, so the strict parser
+    returns nothing and six good messages are lost because the last one was
+    half-written. This walks each audience's array and keeps every element
+    that decoded cleanly, stopping at the incomplete one.
+    """
+    decoder = json.JSONDecoder()
+    salvaged: dict[str, list[str]] = {}
+
+    for key in ("buyer", "seller"):
+        match = re.search(rf'"{key}"\s*:\s*\[', text)
+        if not match:
+            continue
+
+        index = match.end()
+        items: list[str] = []
+        while index < len(text):
+            while index < len(text) and text[index] in " \t\r\n,":
+                index += 1
+            if index >= len(text) or text[index] != '"':
+                break  # end of array, or a truncated non-string
+            try:
+                value, index = decoder.raw_decode(text, index)
+            except ValueError:
+                break  # the trailing string was cut off mid-write
+            if isinstance(value, str):
+                items.append(value)
+
+        if items:
+            salvaged[key] = items
+
+    return salvaged
+
+
 def generate_text_messages(city_name: str, stats: dict) -> dict[str, list[str]] | None:
     """One API call per city per run. Results are stored, so the dashboard
     never calls the API on a page view."""
@@ -169,19 +209,44 @@ def generate_text_messages(city_name: str, stats: dict) -> dict[str, list[str]] 
     try:
         response = client.messages.create(
             model=MODEL,
-            max_tokens=1500,
+            # Billed on tokens generated, not on the ceiling, so a generous
+            # cap costs nothing. 1500 truncated a real run: six short
+            # messages should fit easily, so a response this long means the
+            # model wrote more than asked — which the salvage below handles
+            # rather than losing every message to one half-written string.
+            max_tokens=4000,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_prompt}],
         )
-        if response.stop_reason == "max_tokens":
-            logger.warning("text messages for %s were truncated at max_tokens", city_name)
-
         text = "".join(block.text for block in response.content if block.type == "text")
-        parsed = _extract_json(text)
+        if response.stop_reason == "max_tokens":
+            logger.warning(
+                "text messages for %s were truncated at max_tokens (%d chars returned) "
+                "— salvaging the complete messages",
+                city_name,
+                len(text),
+            )
+
+        try:
+            parsed = _extract_json(text)
+        except ValueError:
+            parsed = _salvage_messages(text)
+            if not parsed:
+                raise
+            logger.warning(
+                "%s: response was not valid JSON; salvaged %d buyer / %d seller message(s)",
+                city_name,
+                len(parsed.get("buyer", [])),
+                len(parsed.get("seller", [])),
+            )
+
         result = {
             "buyer": [str(m).strip() for m in parsed.get("buyer", [])],
             "seller": [str(m).strip() for m in parsed.get("seller", [])],
         }
+        if not result["buyer"] and not result["seller"]:
+            logger.error("%s: no usable messages in the response", city_name)
+            return None
 
         for audience, messages in result.items():
             for message in messages:
