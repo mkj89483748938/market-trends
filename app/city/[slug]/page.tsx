@@ -116,7 +116,10 @@ export default async function CityPage({
         />
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* Stacked, full width, texts beneath the talking points. space-y-6
+          rather than a margin on each: TextMessages renders nothing outside
+          the pilot cities, and this way that leaves no orphaned gap. */}
+      <div className="mt-6 space-y-6">
         <TalkingPoints points={talkingPoints} />
         <TextMessages messages={textMessages} />
       </div>
