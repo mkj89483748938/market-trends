@@ -61,6 +61,23 @@ def upsert_talking_points(row: dict) -> None:
     ).execute()
 
 
+def get_latest_stats(city_id: str, segment: str = "all") -> dict | None:
+    """The most recent stats row for a city, for regenerating derived content
+    (talking points, texts) without re-scraping Realtor.com."""
+    res = (
+        get_client()
+        .table("market_stats")
+        .select("*")
+        .eq("city_id", city_id)
+        .eq("property_segment", segment)
+        .order("run_date", desc=True)
+        .limit(1)
+        .execute()
+    )
+    rows = res.data or []
+    return rows[0] if rows else None
+
+
 def upsert_text_messages(row: dict) -> None:
     get_client().table("text_messages").upsert(
         row, on_conflict="city_id,run_date,audience"

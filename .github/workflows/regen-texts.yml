@@ -1,0 +1,39 @@
+name: Regenerate follow-up texts
+
+# Reruns only the follow-up-text generation, against stats already stored in
+# Supabase. Takes seconds and touches Realtor.com not at all — use this while
+# iterating on the wording instead of a full 11-minute scrape.
+#
+# Every generated message is printed in the run log, so the output can be
+# reviewed here as well as on the dashboard.
+
+on:
+  workflow_dispatch:
+    inputs:
+      slugs:
+        description: "Comma-separated city slugs (blank = whatever the pilot list is, currently orange)"
+        required: false
+        default: ""
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r scraper/requirements.txt
+
+      - name: Regenerate
+        working-directory: scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TEXT_SLUGS: ${{ inputs.slugs }}
+        run: python regen_texts.py
