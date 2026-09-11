@@ -8,6 +8,14 @@ export type City = {
   longitude: number | null;
 };
 
+/**
+ * The county-wide rollup is stored as a row in `cities` so it inherits every
+ * city feature (tiles, charts, segment toggle, talking points, sold comps)
+ * for free. It has to be filtered out of the city grid, though, or it shows
+ * up as a 35th "city".
+ */
+export const COUNTY_SLUG = "orange-county";
+
 export type PropertySegment = "all" | "single_family" | "condo_townhome";
 
 export const PROPERTY_SEGMENTS: { value: PropertySegment; label: string }[] = [

@@ -38,5 +38,17 @@ CITIES = [
 ]
 
 
+# The county-wide rollup lives as an extra row in `cities` rather than in a
+# table of its own, so every downstream feature — stat tiles, trend charts,
+# the segment toggle, talking points, sold comps — works for it unchanged.
+#
+# It is NOT scraped as a location. Realtor.com would happily accept "Orange
+# County, CA" as a search, but that returns its own geography (including
+# unincorporated areas) and wouldn't reconcile against the sum of the 34 city
+# pages. Instead its numbers come from pooling the cities' own listings, so
+# the county view is by construction the same data the city views show.
+COUNTY = {"name": "Orange County", "slug": "orange-county"}
+
+
 def query_location(city_name: str) -> str:
     return f"{city_name}, CA"

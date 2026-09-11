@@ -1,5 +1,6 @@
 import "server-only";
 import { getServiceClient } from "./supabase";
+import { COUNTY_SLUG } from "./types";
 import type {
   ActiveListing,
   Audience,
@@ -10,11 +11,21 @@ import type {
   TalkingPoints,
 } from "./types";
 
+/** The 34 real cities, excluding the county rollup row. */
 export async function getCities(): Promise<City[]> {
   const supabase = getServiceClient();
-  const { data, error } = await supabase.from("cities").select("*").order("name");
+  const { data, error } = await supabase
+    .from("cities")
+    .select("*")
+    .neq("slug", COUNTY_SLUG)
+    .order("name");
   if (error) throw error;
   return data ?? [];
+}
+
+/** The county rollup row, or null before the first scrape that writes it. */
+export async function getCountyCity(): Promise<City | null> {
+  return getCityBySlug(COUNTY_SLUG);
 }
 
 export async function getCityBySlug(slug: string): Promise<City | null> {

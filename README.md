@@ -93,6 +93,33 @@ export ANTHROPIC_API_KEY=...
 python main.py
 ```
 
+## County-wide view
+
+The home page has an "All of Orange County" banner above the city grid,
+linking to a county rollup with the same tiles, charts, segment toggle,
+talking points and sold comps as any city page. It's stored as an extra row
+in `cities` (slug `orange-county`), which is why it inherits every city
+feature for free; the frontend filters that slug out of the grid.
+
+Its numbers come from **pooling the cities' listings**, not from averaging
+their summary stats. That distinction matters: counts like inventory and
+homes sold do add up, but medians do not. A median of 34 city medians weights
+Villa Park's 17 listings the same as Irvine's 849 — with our real data that
+would report a county median around $1.7M against a true pooled median closer
+to $1.1M. Pooling the underlying rows and taking one median is the only way
+the figure means anything, and it also guarantees the county view and the
+city views are computed by identical code (`write_location` in `main.py`
+handles both).
+
+The county row is only written when at least 90% of cities contributed that
+run. A county median quietly missing nine cities would look just as
+authoritative on the page as a complete one, so a partial rollup is skipped
+and last week's county row stays until a full run replaces it.
+
+Realtor.com would accept "Orange County, CA" as a search, but that returns
+its own geography including unincorporated areas, and wouldn't reconcile
+against the sum of the 34 city pages. Pooling keeps the two consistent.
+
 ## Property-type segments
 
 Each run writes three rows per city — `all`, `single_family`, and

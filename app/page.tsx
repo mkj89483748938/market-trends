@@ -1,14 +1,21 @@
 import { CityCard } from "@/components/CityCard";
+import { CountyCard } from "@/components/CountyCard";
 import { LastUpdated } from "@/components/LastUpdated";
-import { getCities, getLastUpdated, getLatestStatsByCity } from "@/lib/queries";
+import {
+  getCities,
+  getCountyCity,
+  getLastUpdated,
+  getLatestStatsByCity,
+} from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [cities, statsByCity, lastUpdated] = await Promise.all([
+  const [cities, statsByCity, lastUpdated, county] = await Promise.all([
     getCities(),
     getLatestStatsByCity(),
     getLastUpdated(),
+    getCountyCity(),
   ]);
 
   return (
@@ -22,6 +29,8 @@ export default async function HomePage() {
           <LastUpdated runDate={lastUpdated} />
         </div>
       </header>
+
+      <CountyCard city={county} stats={county ? statsByCity.get(county.id) : undefined} />
 
       {cities.length === 0 ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">
