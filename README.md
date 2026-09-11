@@ -93,6 +93,31 @@ export ANTHROPIC_API_KEY=...
 python main.py
 ```
 
+## Follow-up texts (pilot: Orange only)
+
+Each city page can show suggested follow-up texts an agent sends a lead who
+has gone quiet — three for buyers, three for sellers, grounded in that city's
+current numbers, with a copy button each. They're generated during the weekly
+scrape and stored, same as talking points, so page views cost nothing.
+
+**Currently generated for the city of Orange only**, set by
+`TEXT_MESSAGE_SLUGS` in `scraper/main.py`. Set it to `None` to roll out to
+every city. Cities outside the pilot show no card at all rather than an empty
+one, and cost no API call.
+
+They differ from talking points deliberately: talking points are lines to say
+on a call, these are messages short enough to send as written. So the prompt
+asks for a reason the text is arriving, exactly one `{first_name}` placeholder,
+one easy closing question, no emoji or hype openers, and under 300 characters
+(SMS splits past 160 — messages over the limit are flagged in the run logs).
+Percentages are banned here too, matching the talking points.
+
+One thing the app can't decide for you: texting leads is subject to consent
+rules (TCPA and California's equivalents), and whether a given lead can be
+texted depends on how they came in and what they agreed to. These are drafts
+for a conversation you're entitled to have — the compliance call stays with
+the agent sending them.
+
 ## County-wide view
 
 The home page has an "All of Orange County" banner above the city grid,

@@ -61,6 +61,12 @@ def upsert_talking_points(row: dict) -> None:
     ).execute()
 
 
+def upsert_text_messages(row: dict) -> None:
+    get_client().table("text_messages").upsert(
+        row, on_conflict="city_id,run_date,audience"
+    ).execute()
+
+
 def replace_recent_sales(city_id: str, sales: list[dict]) -> None:
     """Swaps in this run's sold comps for a city (all segments at once).
 

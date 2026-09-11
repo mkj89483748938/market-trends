@@ -58,6 +58,19 @@ create table if not exists market_trends.talking_points (
   unique (city_id, run_date, audience)
 );
 
+-- Suggested follow-up texts an agent can send a lead, grounded in that
+-- city's current numbers. Separate from talking_points: those are for
+-- speaking out loud on a call, these are short enough to send as-is.
+create table if not exists market_trends.text_messages (
+  id uuid primary key default gen_random_uuid(),
+  city_id uuid not null references market_trends.cities(id) on delete cascade,
+  run_date date not null,
+  audience text not null check (audience in ('buyer', 'seller')),
+  messages jsonb not null,
+  created_at timestamptz not null default now(),
+  unique (city_id, run_date, audience)
+);
+
 create table if not exists market_trends.active_listings (
   id uuid primary key default gen_random_uuid(),
   city_id uuid not null references market_trends.cities(id) on delete cascade,
@@ -150,6 +163,12 @@ select distinct on (city_id, audience) *
 from market_trends.talking_points
 order by city_id, audience, run_date desc;
 
+drop view if exists market_trends.latest_text_messages;
+create view market_trends.latest_text_messages as
+select distinct on (city_id, audience) *
+from market_trends.text_messages
+order by city_id, audience, run_date desc;
+
 drop view if exists market_trends.latest_recent_sales;
 create view market_trends.latest_recent_sales as
 select rs.*
@@ -183,6 +202,7 @@ alter table market_trends.market_stats enable row level security;
 alter table market_trends.talking_points enable row level security;
 alter table market_trends.active_listings enable row level security;
 alter table market_trends.recent_sales enable row level security;
+alter table market_trends.text_messages enable row level security;
 
 -- Creating a schema does not by itself grant Supabase's Postgres roles
 -- access to it. The app and scraper only ever use the service role key

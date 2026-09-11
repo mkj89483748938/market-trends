@@ -63,6 +63,14 @@ export type TalkingPoints = {
   points: string[];
 };
 
+export type TextMessages = {
+  id: string;
+  city_id: string;
+  run_date: string;
+  audience: Audience;
+  messages: string[];
+};
+
 export type RecentSale = {
   id: string;
   city_id: string;

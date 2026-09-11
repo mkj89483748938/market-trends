@@ -9,6 +9,7 @@ import type {
   PropertySegment,
   RecentSale,
   TalkingPoints,
+  TextMessages as TextMessagesRow,
 } from "./types";
 
 /** The 34 real cities, excluding the county rollup row. */
@@ -118,6 +119,24 @@ export async function getLatestTalkingPoints(cityId: string): Promise<Record<Aud
   const result: Record<Audience, string[]> = { buyer: [], seller: [] };
   for (const row of (data ?? []) as TalkingPoints[]) {
     result[row.audience] = row.points ?? [];
+  }
+  return result;
+}
+
+/** Suggested follow-up texts. Empty for cities not in the pilot yet. */
+export async function getLatestTextMessages(
+  cityId: string
+): Promise<Record<Audience, string[]>> {
+  const supabase = getServiceClient();
+  const { data, error } = await supabase
+    .from("latest_text_messages")
+    .select("*")
+    .eq("city_id", cityId);
+  if (error) throw error;
+
+  const result: Record<Audience, string[]> = { buyer: [], seller: [] };
+  for (const row of (data ?? []) as TextMessagesRow[]) {
+    result[row.audience] = row.messages ?? [];
   }
   return result;
 }

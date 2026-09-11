@@ -20,9 +20,11 @@ from db import (
     replace_recent_sales,
     upsert_market_stats,
     upsert_talking_points,
+    upsert_text_messages,
 )
 from scrape import fetch_city_data, is_empty_result
 from talking_points import generate_talking_points
+from text_messages import generate_text_messages
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("market_trends.main")
@@ -42,8 +44,14 @@ COUNTY_MIN_CITY_COVERAGE = 0.9
 # The frames pooled across cities to build the county view.
 FRAME_KEYS = ("active", "pending", "sold_recent", "sold_90d", "sold_last_year")
 
+# Which locations get suggested follow-up texts generated. Starting with one
+# city so the output can be reviewed before it goes out county-wide — these
+# are messages agents send to real leads, so the wording gets approved first.
+# To roll out everywhere, set this to None.
+TEXT_MESSAGE_SLUGS: tuple[str, ...] | None = ("orange",)
 
-def write_location(city_id: str, name: str, run_date: str, data: dict) -> None:
+
+def write_location(city_id: str, name: str, slug: str, run_date: str, data: dict) -> None:
     """Builds and stores every row for one location (a city or the county).
 
     The county rollup goes through this same function rather than a parallel
@@ -88,6 +96,26 @@ def write_location(city_id: str, name: str, run_date: str, data: dict) -> None:
                     "audience": audience,
                     "points": points[audience],
                 }
+            )
+
+    # Follow-up texts, currently limited to the cities being piloted so the
+    # wording can be approved before agents send it to real leads.
+    if TEXT_MESSAGE_SLUGS is None or slug in TEXT_MESSAGE_SLUGS:
+        messages = generate_text_messages(name, all_segment_stats[SEGMENT_ALL])
+        if messages:
+            for audience in ("buyer", "seller"):
+                upsert_text_messages(
+                    {
+                        "city_id": city_id,
+                        "run_date": run_date,
+                        "audience": audience,
+                        "messages": messages[audience],
+                    }
+                )
+            logger.info(
+                "  wrote %d buyer / %d seller follow-up text(s)",
+                len(messages["buyer"]),
+                len(messages["seller"]),
             )
 
 
@@ -139,7 +167,7 @@ def _write_county(
             len(county_data["sold_90d"]),
             len(county_data["sold_last_year"]),
         )
-        write_location(county_id, COUNTY["name"], run_date, county_data)
+        write_location(county_id, COUNTY["name"], COUNTY["slug"], run_date, county_data)
     except Exception:  # noqa: BLE001 - the city rows are already written and valid
         logger.exception("Failed building the county rollup")
 
@@ -190,7 +218,7 @@ def run() -> None:
 
             log_style_distribution(city["name"], data["active"])
 
-            write_location(city_id, city["name"], run_date, data)
+            write_location(city_id, city["name"], city["slug"], run_date, data)
 
             # Keep this city's listings for the county rollup. Done after the
             # write so a city that fails partway through doesn't contribute a

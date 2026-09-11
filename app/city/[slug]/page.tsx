@@ -3,6 +3,7 @@ import Link from "next/link";
 import { StatTile } from "@/components/StatTile";
 import { TrendChart } from "@/components/TrendChart";
 import { TalkingPoints } from "@/components/TalkingPoints";
+import { TextMessages } from "@/components/TextMessages";
 import { SegmentToggle } from "@/components/SegmentToggle";
 import { LastUpdated } from "@/components/LastUpdated";
 import {
@@ -18,6 +19,7 @@ import {
   getCityBySlug,
   getLatestStatsForCity,
   getLatestTalkingPoints,
+  getLatestTextMessages,
   getRecentSales,
   getStatsHistory,
 } from "@/lib/queries";
@@ -37,10 +39,11 @@ export default async function CityPage({
   const segment = isPropertySegment(searchParams.segment) ? searchParams.segment : "all";
   const segmentLabel = PROPERTY_SEGMENTS.find((s) => s.value === segment)?.label ?? "All types";
 
-  const [stats, history, talkingPoints, sales] = await Promise.all([
+  const [stats, history, talkingPoints, textMessages, sales] = await Promise.all([
     getLatestStatsForCity(city.id, segment),
     getStatsHistory(city.id, segment),
     getLatestTalkingPoints(city.id),
+    getLatestTextMessages(city.id),
     getRecentSales(city.id, segment),
   ]);
 
@@ -113,8 +116,9 @@ export default async function CityPage({
         />
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <TalkingPoints points={talkingPoints} />
+        <TextMessages messages={textMessages} />
       </div>
 
       {sales.length > 0 && (
