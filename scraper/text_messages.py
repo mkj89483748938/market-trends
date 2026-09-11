@@ -23,6 +23,13 @@ logger = logging.getLogger("market_trends.text_messages")
 # prompt; over-long ones are flagged in the logs rather than silently sent.
 MAX_MESSAGE_CHARS = 320
 
+# Season names are a specific failure seen in review: told "prices are lower
+# than three months ago", the model wrote "prices have eased since the
+# spring" — but three months before September is June. The prompt forbids it;
+# this catches it in the logs if it recurs, since the drift is plausible
+# enough to read right.
+_SEASON_WORDS = ("spring", "summer", "autumn", "fall", "winter")
+
 SYSTEM_PROMPT = """You write short follow-up text messages that a real estate agent \
 in Orange County, CA sends to a lead they have already spoken with but who has gone \
 quiet. Produce two lists:
@@ -41,9 +48,16 @@ Numbers:
 under contract, homes sold). Those are concrete and easy to picture.
 - You must NOT state any price, dollar amount, or number of days. Describe prices and \
 how fast homes are selling in words only, using the trends given \
-("prices have eased since the spring", "homes are sitting a little longer than they \
-were last year"). No percentages or percent signs anywhere.
+("prices have come down a little since three months ago", "homes are sitting a bit \
+longer than they were last year"). No percentages or percent signs anywhere.
 - Never invent a number, trend, or fact that wasn't provided.
+- Say the timeframe exactly as it is given to you. If a trend is described as three \
+months ago, call it three months ago. Never substitute a season name or any other \
+period for the timeframe you were given.
+- Only make a comparison if a trend line below actually provides it. If you are not \
+told how something compares with last year or last quarter, do not imply it. In \
+particular, a count of homes for sale on its own does NOT tell you whether there is \
+more or less to choose from than before — describe it as what is available now.
 
 Style:
 - Each message is a complete text, ready to send with no editing, under 300 characters.
@@ -178,6 +192,16 @@ def generate_text_messages(city_name: str, stats: dict) -> dict[str, list[str]] 
                         audience,
                         len(message),
                         MAX_MESSAGE_CHARS,
+                    )
+                lowered = message.lower()
+                season = next((w for w in _SEASON_WORDS if w in lowered), None)
+                if season:
+                    logger.warning(
+                        "%s %s message says %r — check the timeframe is right: %s",
+                        city_name,
+                        audience,
+                        season,
+                        message,
                     )
         return result
     except Exception:  # noqa: BLE001 - one city's failure shouldn't kill the run
