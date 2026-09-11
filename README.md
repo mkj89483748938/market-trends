@@ -93,17 +93,19 @@ export ANTHROPIC_API_KEY=...
 python main.py
 ```
 
-## Follow-up texts (pilot: Orange only)
+## Follow-up texts
 
 Each city page can show suggested follow-up texts an agent sends a lead who
 has gone quiet — three for buyers, three for sellers, grounded in that city's
 current numbers, with a copy button each. They're generated during the weekly
 scrape and stored, same as talking points, so page views cost nothing.
 
-**Currently generated for the city of Orange only**, set by
-`TEXT_MESSAGE_SLUGS` in `scraper/main.py`. Set it to `None` to roll out to
-every city. Cities outside the pilot show no card at all rather than an empty
-one, and cost no API call.
+Generated for **every city plus the county rollup** — 35 locations, one API
+call each per weekly run. This was piloted on Orange alone first and the
+wording reviewed there before going county-wide. `TEXT_MESSAGE_SLUGS` in
+`scraper/main.py` narrows it again if needed: set it to a tuple of slugs and
+only those generate, with every other city showing no card at all rather than
+an empty one.
 
 They differ from talking points deliberately: talking points are lines to say
 on a call, these are messages short enough to send as written, aimed at a lead

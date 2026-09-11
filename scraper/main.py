@@ -44,11 +44,11 @@ COUNTY_MIN_CITY_COVERAGE = 0.9
 # The frames pooled across cities to build the county view.
 FRAME_KEYS = ("active", "pending", "sold_recent", "sold_90d", "sold_last_year")
 
-# Which locations get suggested follow-up texts generated. Starting with one
-# city so the output can be reviewed before it goes out county-wide — these
-# are messages agents send to real leads, so the wording gets approved first.
-# To roll out everywhere, set this to None.
-TEXT_MESSAGE_SLUGS: tuple[str, ...] | None = ("orange",)
+# Which locations get suggested follow-up texts. None means every city plus
+# the county rollup. Piloted on Orange first and reviewed there before going
+# county-wide, since these are messages agents send to real leads. Set this
+# back to a tuple of slugs to narrow it again.
+TEXT_MESSAGE_SLUGS: tuple[str, ...] | None = None
 
 
 def write_location(city_id: str, name: str, slug: str, run_date: str, data: dict) -> None:
