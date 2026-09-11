@@ -55,7 +55,15 @@ export function TrendChart({
 
   const points = history
     .map((row) => ({ date: row.run_date, value: row[field] as number | null }))
-    .filter((row): row is { date: string; value: number } => row.value != null);
+    // Nulls AND zeros are both "no data" here. A zero is never a real market
+    // reading — no Orange County city has zero homes for sale, and no home
+    // sells for $0 — so a zero always means that week's scrape failed. The
+    // 2026-09-07 run recorded active_inventory=0 for all 34 cities after
+    // Realtor.com started returning 403, and plotting it dragged every
+    // inventory line down to the axis and back. A property segment that
+    // genuinely has no inventory (condos in Villa Park, say) has nothing to
+    // trend either way, so dropping those points costs nothing.
+    .filter((row): row is { date: string; value: number } => row.value != null && row.value > 0);
 
   if (points.length < 2) {
     return (
