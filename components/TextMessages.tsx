@@ -65,10 +65,10 @@ export function TextMessages({ messages }: { messages: Record<Audience, string[]
               className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900"
             >
               <p className="text-sm text-slate-700 dark:text-slate-300">{message}</p>
-              <div className="mt-2 flex items-center justify-between">
-                <span className="text-xs text-slate-400 dark:text-slate-500">
-                  {message.length} characters
-                </span>
+              {/* Character count deliberately not shown — it's a scraper-side
+                  concern (SMS segment limits), not something an agent about to
+                  send a text needs on screen. Still logged by regen_texts.py. */}
+              <div className="mt-2 flex items-center justify-end">
                 <button
                   type="button"
                   onClick={() => copy(message, i)}
